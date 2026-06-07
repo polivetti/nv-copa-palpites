@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Palpite principal - NV Copa</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Bolao da Copa</p>
+      <h1>NV Copa</h1>
+    </div>
+    <form class="session-form" method="post" action="/logout">
+      <span class="pill">{{ .User.Name }}</span>
+      <button type="submit" class="ghost-button">Sair</button>
+    </form>
+  </header>
+
+  <main class="shell narrow-shell">
+    {{ if .Error }}<div class="alert error">{{ .Error }}</div>{{ end }}
+    {{ if .Notice }}<div class="alert notice">{{ .Notice }}</div>{{ end }}
+
+    <section class="panel podium-entry">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow dark">Primeiro palpite obrigatorio</p>
+          <h2>Quem sobe no podio?</h2>
+        </div>
+      </div>
+
+      <form class="podium-form" method="post" action="/podium">
+        <label>
+          Campeao
+          <select name="champion" required>
+            <option value="">Selecione</option>
+            {{ range .Teams }}<option value="{{ . }}">{{ . }}</option>{{ end }}
+          </select>
+        </label>
+        <label>
+          Vice-campeao
+          <select name="runner_up" required>
+            <option value="">Selecione</option>
+            {{ range .Teams }}<option value="{{ . }}">{{ . }}</option>{{ end }}
+          </select>
+        </label>
+        <label>
+          Terceiro colocado
+          <select name="third" required>
+            <option value="">Selecione</option>
+            {{ range .Teams }}<option value="{{ . }}">{{ . }}</option>{{ end }}
+          </select>
+        </label>
+        <button type="submit">Salvar palpite principal</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

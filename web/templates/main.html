@@ -1,0 +1,247 @@
+{{ define "main" }}
+<main id="app" class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-block">
+      <p class="eyebrow dark">Menu</p>
+      <nav class="side-nav">
+        <a href="/" class="active">Resumo</a>
+        <a href="/groups">Palpites</a>
+        <span class="nav-placeholder">Classificacao dos jogadores</span>
+      </nav>
+    </div>
+
+    <div class="sidebar-block">
+      <p class="eyebrow dark">Grupos</p>
+      <nav class="group-nav">
+        {{ range .Groups }}
+          <a href="/?group={{ urlquery .Name }}" class="{{ if eq $.SelectedGroup .Name }}active{{ end }}">{{ .Name }}</a>
+        {{ end }}
+      </nav>
+    </div>
+
+    <div class="sidebar-block sidebar-summary">
+      <p class="eyebrow dark">Rodada {{ .CurrentRound }}</p>
+      <strong>{{ .RoundPredicted }}/{{ .RoundTotal }} jogos palpitados</strong>
+      <span>{{ .SelectedGroup }}</span>
+    </div>
+  </aside>
+
+  <div class="content-shell">
+    {{ if .Error }}<div class="alert error">{{ .Error }}</div>{{ end }}
+    {{ if .Notice }}<div class="alert notice">{{ .Notice }}</div>{{ end }}
+
+    <section id="summary" class="podium-summary">
+      <div class="summary-header">
+        <div>
+          <p class="eyebrow dark">Seu palpite principal</p>
+          <h2>Podio e regras do bolao</h2>
+        </div>
+        <ol class="podium-list">
+          <li><span>1</span><strong>{{ teamDisplay .Podium.Champion }}</strong></li>
+          <li><span>2</span><strong>{{ teamDisplay .Podium.RunnerUp }}</strong></li>
+          <li><span>3</span><strong>{{ teamDisplay .Podium.Third }}</strong></li>
+        </ol>
+      </div>
+
+      <div class="rules-tabs">
+        <input class="tab-toggle" type="radio" name="summary-rules" id="tab-groups-rules" checked>
+        <input class="tab-toggle" type="radio" name="summary-rules" id="tab-knockout-rules">
+        <input class="tab-toggle" type="radio" name="summary-rules" id="tab-special-rules">
+        <input class="tab-toggle" type="radio" name="summary-rules" id="tab-prize-rules">
+
+        <div class="tab-strip" role="tablist" aria-label="Regras do bolao">
+          <label class="tab-button" for="tab-groups-rules" role="tab">Fase de grupos</label>
+          <label class="tab-button" for="tab-knockout-rules" role="tab">Fase mata-mata</label>
+          <label class="tab-button" for="tab-special-rules" role="tab">Palpite especial</label>
+          <label class="tab-button" for="tab-prize-rules" role="tab">Participacao e premiacao</label>
+        </div>
+
+        <section id="groups-rules" class="rules-panel panel-groups-rules" role="tabpanel">
+          <div class="rules-grid two-columns">
+            <article class="rules-card">
+              <h3>Pontuacao nos jogos</h3>
+              <ul class="rules-list">
+                <li><strong>3 pontos</strong> por acertar o placar exato.</li>
+                <li><strong>1 ponto</strong> por acertar apenas o vencedor ou o empate.</li>
+                <li><strong>0 ponto</strong> quando errar resultado e vencedor.</li>
+              </ul>
+            </article>
+
+            <article class="rules-card">
+              <h3>Classificacao do grupo</h3>
+              <ul class="rules-list">
+                <li><strong>5 pontos</strong> ao acertar os classificados e a ordem exata.</li>
+                <li><strong>3 pontos</strong> ao acertar quem passa, mas com ordem diferente.</li>
+                <li><strong>2 pontos</strong> por acertar um terceiro colocado que avance.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section id="knockout-rules" class="rules-panel panel-knockout-rules" role="tabpanel">
+          <div class="rules-grid">
+            <article class="rules-card">
+              <h3>Pontuacao por rodada</h3>
+              <div class="rules-table-wrap">
+                <table class="rules-table">
+                  <thead>
+                    <tr>
+                      <th>Rodada</th>
+                      <th>Resultado</th>
+                      <th>Vencedor</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>1a fase do mata (16 jogos)</td><td>4</td><td>2</td><td>6</td></tr>
+                    <tr><td>2a fase (8 jogos)</td><td>5</td><td>3</td><td>8</td></tr>
+                    <tr><td>3a fase (4 jogos)</td><td>6</td><td>4</td><td>10</td></tr>
+                    <tr><td>4a fase (2 jogos)</td><td>7</td><td>5</td><td>12</td></tr>
+                    <tr><td>Disputa de terceiro</td><td>8</td><td>6</td><td>14</td></tr>
+                    <tr><td>Final</td><td>9</td><td>7</td><td>16</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="rules-card">
+              <h3>Como vao funcionar os palpites</h3>
+              <ul class="rules-list">
+                <li>Os palpites do mata-mata serao feitos rodada por rodada.</li>
+                <li>Quanto mais avancada a fase, maior a pontuacao.</li>
+                <li>Essa parte ainda nao esta liberada no app e sera a proxima etapa.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section id="special-rules" class="rules-panel panel-special-rules" role="tabpanel">
+          <div class="rules-grid three-columns">
+            <article class="rules-card special-score">
+              <h3>Campeao</h3>
+              <strong>20 pontos</strong>
+              <p>Informado antes do inicio do bolao.</p>
+            </article>
+            <article class="rules-card special-score">
+              <h3>Vice-campeao</h3>
+              <strong>15 pontos</strong>
+              <p>Informado antes do inicio do bolao.</p>
+            </article>
+            <article class="rules-card special-score">
+              <h3>3o colocado</h3>
+              <strong>10 pontos</strong>
+              <p>Informado antes do inicio do bolao.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="prize-rules" class="rules-panel panel-prize-rules" role="tabpanel">
+          <div class="rules-grid three-columns">
+            <article class="rules-card special-score">
+              <h3>Valor para participar</h3>
+              <strong>R$ 10,00</strong>
+              <p>Valor por participante para entrar no bolao e concorrer a premiacao.</p>
+            </article>
+
+            <article class="rules-card">
+              <h3>Pagamento via Pix</h3>
+              <p>Chave Pix para pagamento:</p>
+              <strong class="pix-key">marcovarani155@gmail.com</strong>
+            </article>
+
+            <article class="rules-card">
+              <h3>Premiacao</h3>
+              <ul class="rules-list">
+                <li><strong>1o lugar:</strong> 70%</li>
+                <li><strong>2o lugar:</strong> 20%</li>
+                <li><strong>3o lugar:</strong> 10%</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="round-panel" class="round-layout">
+      <section class="panel standings-panel">
+        <header class="standings-head">
+          <h2>{{ .SelectedGroup }}</h2>
+          <span>{{ .RoundLabel }}</span>
+        </header>
+        <table class="standings-table">
+          <thead>
+            <tr>
+              <th>Classificacao</th>
+              <th>P</th>
+              <th>J</th>
+              <th>V</th>
+              <th>E</th>
+              <th>D</th>
+              <th>GP</th>
+              <th>GC</th>
+              <th>SG</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{ range .GroupStandings }}
+              <tr>
+                <td class="club-cell"><span class="place">{{ .Position }}</span><span class="flag">{{ .TeamFlag }}</span>{{ .TeamDisplay }}</td>
+                <td>{{ .Points }}</td>
+                <td>{{ .Played }}</td>
+                <td>{{ .Wins }}</td>
+                <td>{{ .Draws }}</td>
+                <td>{{ .Losses }}</td>
+                <td>{{ .GoalsFor }}</td>
+                <td>{{ .GoalsAgainst }}</td>
+                <td>{{ .GoalDiff }}</td>
+              </tr>
+            {{ end }}
+          </tbody>
+        </table>
+      </section>
+
+      <section class="panel round-panel">
+        <header class="round-panel-head">
+          <h2>{{ .RoundLabel }}</h2>
+          <span>{{ .SelectedGroup }}</span>
+        </header>
+
+        <form class="round-form" hx-post="/round-predictions" hx-target="#app" hx-swap="outerHTML">
+          <input type="hidden" name="selected_group" value="{{ .SelectedGroup }}">
+          <div class="round-match-list">
+            {{ range .CurrentRoundFixtures }}
+              <article class="round-match-card">
+                <div class="match-date">{{ .MatchDate }}</div>
+                <div class="match-group">{{ .GroupName }}</div>
+                <div class="round-club-row">
+                  <span class="round-team-name">{{ .HomeDisplay }}</span>
+                  <span class="flag">{{ .HomeFlag }}</span>
+                  <div class="match-inputs">
+                    <input type="number" min="0" name="fixture_{{ .ID }}_home" value="{{ .PredHomeScore }}" {{ if .Locked }}disabled{{ end }}>
+                    <span>x</span>
+                    <input type="number" min="0" name="fixture_{{ .ID }}_away" value="{{ .PredAwayScore }}" {{ if .Locked }}disabled{{ end }}>
+                  </div>
+                  <span class="flag">{{ .AwayFlag }}</span>
+                  <span class="round-team-name">{{ .AwayDisplay }}</span>
+                </div>
+                {{ if .HasResult }}
+                  <small>Resultado oficial ja informado.</small>
+                {{ else if .Locked }}
+                  <small>Prazo encerrado. O palpite fecha na vespera do jogo.</small>
+                {{ else }}
+                  <small>Palpite aberto ate a vespera do jogo.</small>
+                {{ end }}
+              </article>
+            {{ end }}
+          </div>
+          <div class="sticky-actions">
+            <span>{{ .RoundPredicted }}/{{ .RoundTotal }} palpites salvos na rodada</span>
+            <button type="submit">Salvar palpites da rodada</button>
+          </div>
+        </form>
+      </section>
+    </section>
+
+  </div>
+</main>
+{{ end }}

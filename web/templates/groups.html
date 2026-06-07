@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Palpite dos Grupos - NV Copa</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Bolao da Copa</p>
+      <h1>NV Copa</h1>
+    </div>
+    <form class="session-form" method="post" action="/logout">
+      <span class="pill">{{ .User.Name }}</span>
+      <button type="submit" class="ghost-button">Sair</button>
+    </form>
+  </header>
+
+  <main class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-block">
+        <p class="eyebrow dark">Menu</p>
+        <nav class="side-nav">
+          <a href="/">Resumo</a>
+          <a href="/groups" class="active">Palpites</a>
+          <span class="nav-placeholder">Classificacao dos jogadores</span>
+        </nav>
+      </div>
+
+      <div class="sidebar-block">
+        <p class="eyebrow dark">Grupos</p>
+        <nav class="group-nav">
+          {{ range .Groups }}
+            <a href="/groups?group={{ urlquery .Name }}&round={{ $.SelectedRound }}" class="{{ if eq $.SelectedGroup .Name }}active{{ end }}">{{ .Name }}</a>
+          {{ end }}
+        </nav>
+      </div>
+
+      <div class="sidebar-block sidebar-summary">
+        <p class="eyebrow dark">Status</p>
+        <strong>{{ if .Locked }}Finalizado{{ else }}Rascunho{{ end }}</strong>
+        <span>{{ .ThirdCount }}/8 terceiros</span>
+        {{ if .User.IsAdmin }}<span>Administrador</span>{{ end }}
+      </div>
+    </aside>
+
+    <div class="content-shell">
+      {{ if .Error }}<div class="alert error">{{ .Error }}</div>{{ end }}
+      {{ if .Notice }}<div class="alert notice">{{ .Notice }}</div>{{ end }}
+
+      <section class="round-layout">
+        <section class="panel standings-panel">
+          <header class="standings-head">
+            <h2>{{ .SelectedGroup }}</h2>
+            <span>{{ .RoundLabel }}</span>
+          </header>
+          <table class="standings-table">
+            <thead>
+              <tr>
+                <th>Classificacao</th>
+                <th>P</th>
+                <th>J</th>
+                <th>V</th>
+                <th>E</th>
+                <th>D</th>
+                <th>GP</th>
+                <th>GC</th>
+                <th>SG</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{ range .GroupStandings }}
+                <tr>
+                  <td class="club-cell"><span class="place">{{ .Position }}</span><span class="flag">{{ .TeamFlag }}</span>{{ .TeamDisplay }}</td>
+                  <td>{{ .Points }}</td>
+                  <td>{{ .Played }}</td>
+                  <td>{{ .Wins }}</td>
+                  <td>{{ .Draws }}</td>
+                  <td>{{ .Losses }}</td>
+                  <td>{{ .GoalsFor }}</td>
+                  <td>{{ .GoalsAgainst }}</td>
+                  <td>{{ .GoalDiff }}</td>
+                </tr>
+              {{ end }}
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel round-panel">
+          <header class="round-panel-head">
+            <h2>{{ .RoundLabel }}</h2>
+            <span>{{ .SelectedGroup }}</span>
+          </header>
+
+          <nav class="round-switcher">
+            <a href="/groups?group={{ urlquery .SelectedGroup }}&round=1" class="{{ if eq .SelectedRound 1 }}active{{ end }}">1a Rodada</a>
+            <a href="/groups?group={{ urlquery .SelectedGroup }}&round=2" class="{{ if eq .SelectedRound 2 }}active{{ end }}">2a Rodada</a>
+            <a href="/groups?group={{ urlquery .SelectedGroup }}&round=3" class="{{ if eq .SelectedRound 3 }}active{{ end }}">3a Rodada</a>
+          </nav>
+
+          <form class="round-form" method="post" action="/groups/results">
+            <input type="hidden" name="selected_group" value="{{ .SelectedGroup }}">
+            <input type="hidden" name="selected_round" value="{{ .SelectedRound }}">
+            <div class="round-match-list">
+              {{ range .CurrentRoundFixtures }}
+                <article class="round-match-card">
+                  <div class="match-date">{{ .MatchDate }}</div>
+                  <div class="match-group">{{ .GroupName }}</div>
+                  <div class="round-club-row">
+                    <span class="round-team-name">{{ .HomeDisplay }}</span>
+                    <span class="flag">{{ .HomeFlag }}</span>
+                    <div class="match-inputs">
+                      {{ if $.User.IsAdmin }}
+                        <input type="number" min="0" name="result_{{ .ID }}_home" value="{{ if .HasResult }}{{ .RealHomeScore }}{{ else }}{{ end }}">
+                        <span>x</span>
+                        <input type="number" min="0" name="result_{{ .ID }}_away" value="{{ if .HasResult }}{{ .RealAwayScore }}{{ else }}{{ end }}">
+                      {{ else }}
+                        <div class="result-readonly">{{ if .HasResult }}{{ .RealHomeScore }}{{ else }}-{{ end }}</div>
+                        <span>x</span>
+                        <div class="result-readonly">{{ if .HasResult }}{{ .RealAwayScore }}{{ else }}-{{ end }}</div>
+                      {{ end }}
+                    </div>
+                    <span class="flag">{{ .AwayFlag }}</span>
+                    <span class="round-team-name">{{ .AwayDisplay }}</span>
+                  </div>
+                  {{ if .HasResult }}
+                    <small>Resultado oficial registrado.</small>
+                  {{ else }}
+                    <small>{{ if $.User.IsAdmin }}Resultado oficial ainda nao informado.{{ else }}Aguardando resultado oficial do administrador.{{ end }}</small>
+                  {{ end }}
+                </article>
+              {{ end }}
+            </div>
+            {{ if .User.IsAdmin }}
+              <div class="sticky-actions">
+                <span>Ao salvar resultados, a classificacao do grupo e recalculada.</span>
+                <button type="submit">Salvar resultados oficiais</button>
+              </div>
+            {{ end }}
+          </form>
+        </section>
+      </section>
+
+      <section class="groups-bottom-layout">
+        <section class="panel groups-panel">
+          <div class="panel-head groups-head">
+            <div>
+              <h2>Classificados do {{ .SelectedGroup }}</h2>
+              <p>Consulta do seu palpite fechado para este grupo.</p>
+            </div>
+            <span class="counter">{{ .ThirdCount }}/8 terceiros</span>
+          </div>
+
+          <div class="single-group-panel">
+            <article class="group-card selected-group-card" data-group="{{ .SelectedGroup }}">
+              <header>
+                <h3>{{ .SelectedGroup }}</h3>
+                <div class="position-labels" aria-hidden="true">
+                  <span>1º</span>
+                  <span>2º</span>
+                  <span>3º</span>
+                </div>
+              </header>
+
+              <div class="team-list">
+                {{ range .SelectedGroupTeams }}
+                  <div class="team-row">
+                    <span class="team-name"><span class="flag">{{ .Flag }}</span>{{ .Display }}</span>
+                    <div class="readonly-picks">
+                      <span class="team-pick-pill {{ if eq .Position 1 }}active{{ end }}">1º</span>
+                      <span class="team-pick-pill {{ if eq .Position 2 }}active{{ end }}">2º</span>
+                      <span class="team-pick-pill {{ if eq .Position 3 }}active{{ end }}">3º</span>
+                    </div>
+                  </div>
+                {{ end }}
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel round-panel user-round-panel">
+          <header class="round-panel-head">
+            <h2>{{ .CurrentRoundLabel }}</h2>
+            <span>{{ .SelectedGroup }}</span>
+          </header>
+
+          <form class="round-form" method="post" action="/round-predictions">
+            <input type="hidden" name="selected_group" value="{{ .SelectedGroup }}">
+            <input type="hidden" name="selected_round" value="{{ .SelectedRound }}">
+            <input type="hidden" name="return_to" value="groups">
+            <div class="round-match-list">
+              {{ range .ActiveRoundFixtures }}
+                <article class="round-match-card">
+                  <div class="match-date">{{ .MatchDate }}</div>
+                  <div class="match-group">{{ .GroupName }}</div>
+                  <div class="round-club-row">
+                    <span class="round-team-name">{{ .HomeDisplay }}</span>
+                    <span class="flag">{{ .HomeFlag }}</span>
+                    <div class="match-inputs">
+                      <input type="number" min="0" name="fixture_{{ .ID }}_home" value="{{ .PredHomeScore }}" {{ if .Locked }}disabled{{ end }}>
+                      <span>x</span>
+                      <input type="number" min="0" name="fixture_{{ .ID }}_away" value="{{ .PredAwayScore }}" {{ if .Locked }}disabled{{ end }}>
+                    </div>
+                    <span class="flag">{{ .AwayFlag }}</span>
+                    <span class="round-team-name">{{ .AwayDisplay }}</span>
+                  </div>
+                  {{ if .HasResult }}
+                    <small>Resultado oficial ja informado.</small>
+                  {{ else if .Locked }}
+                    <small>Prazo encerrado. O palpite fecha na vespera do jogo.</small>
+                  {{ else }}
+                    <small>Palpite aberto ate a vespera do jogo.</small>
+                  {{ end }}
+                </article>
+              {{ end }}
+            </div>
+            <div class="sticky-actions">
+              <span>{{ .ActiveRoundPredicted }}/{{ .ActiveRoundTotal }} palpites salvos nesta rodada do grupo</span>
+              <button type="submit">Salvar palpites da rodada</button>
+            </div>
+          </form>
+        </section>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

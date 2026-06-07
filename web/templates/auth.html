@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar - NV Copa</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="auth-body">
+  <main class="auth-shell">
+    <section class="auth-hero">
+      <p class="eyebrow">Bolao da Copa</p>
+      <h1>NV Copa</h1>
+    </section>
+
+    <section class="auth-grid single-auth">
+      {{ if .Error }}<div class="alert error">{{ .Error }}</div>{{ end }}
+      {{ if .Notice }}<div class="alert notice">{{ .Notice }}</div>{{ end }}
+
+      <form class="panel auth-panel" method="post" action="/login">
+        <h2>Entrar</h2>
+        <input name="name" placeholder="Nome" autocomplete="username">
+        <input type="password" name="password" placeholder="Senha" autocomplete="current-password">
+        <button type="submit">Entrar</button>
+        <a class="secondary-action" href="/signup">Cadastrar</a>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

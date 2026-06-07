@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Classificados dos Grupos - NV Copa</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Bolao da Copa</p>
+      <h1>NV Copa</h1>
+    </div>
+    <form class="session-form" method="post" action="/logout">
+      <span class="pill">{{ .User.Name }}</span>
+      <button type="submit" class="ghost-button">Sair</button>
+    </form>
+  </header>
+
+  <main class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-block">
+        <p class="eyebrow dark">Menu</p>
+        <nav class="side-nav">
+          <a href="/">Resumo</a>
+          <a href="/group-picks" class="active">Palpites</a>
+          <span class="nav-placeholder">Classificacao dos jogadores</span>
+        </nav>
+      </div>
+    </aside>
+
+    <div class="content-shell">
+      {{ if .Error }}<div class="alert error">{{ .Error }}</div>{{ end }}
+      {{ if .Notice }}<div class="alert notice">{{ .Notice }}</div>{{ end }}
+
+      <section class="panel groups-panel">
+        <div class="panel-head groups-head">
+          <div>
+            <p class="eyebrow dark">Segundo passo obrigatorio</p>
+            <h2>Classificados dos grupos</h2>
+            <p>Escolha agora o 1º, 2º e 3º de todos os 12 grupos. Depois de salvar, esse palpite fica travado para consulta.</p>
+          </div>
+          <span class="counter">{{ .ThirdCount }}/8 terceiros</span>
+        </div>
+
+        <form method="post" action="/group-picks/save">
+          <div class="groups-grid">
+            {{ range .Groups }}
+              {{ $group := . }}
+              <article class="group-card" data-group="{{ .Name }}">
+                <header>
+                  <h3>{{ .Name }}</h3>
+                  <div class="position-labels" aria-hidden="true">
+                    <span>1º</span>
+                    <span>2º</span>
+                    <span>3º</span>
+                  </div>
+                </header>
+
+                <div class="team-list">
+                  {{ range .Teams }}
+                    <div class="team-row">
+                      <span class="team-name"><span class="flag">{{ .Flag }}</span>{{ .Display }}</span>
+                      <div class="position-radios">
+                        <label><input type="radio" name="pick_{{ $group.Name }}_{{ .Name }}" value="1" {{ if eq .Position 1 }}checked{{ end }}><span></span></label>
+                        <label><input type="radio" name="pick_{{ $group.Name }}_{{ .Name }}" value="2" {{ if eq .Position 2 }}checked{{ end }}><span></span></label>
+                        <label><input type="radio" name="pick_{{ $group.Name }}_{{ .Name }}" value="3" {{ if eq .Position 3 }}checked{{ end }}><span></span></label>
+                      </div>
+                    </div>
+                  {{ end }}
+                </div>
+              </article>
+            {{ end }}
+          </div>
+
+          <div class="sticky-actions">
+            <span>Voce precisa fechar os 12 grupos e escolher exatamente 8 terceiros colocados.</span>
+            <button type="submit">Salvar classificados dos grupos</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
