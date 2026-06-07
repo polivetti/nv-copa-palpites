@@ -56,7 +56,7 @@ jobs:
           script_stop: true
           envs: IMAGE_NAME
           script: |
-            export PATH=$PATH:/usr/bin:/usr/local/bin
+            export PATH=$PATH:/usr/bin:/usr/local/bin:/snap/bin:/usr/libexec/docker/cli-plugins
             export IMAGE="${IMAGE_NAME}:latest"
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
             cd "${{ secrets.DEPLOY_PATH }}"
