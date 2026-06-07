@@ -57,9 +57,9 @@ O repositorio agora tem dois workflows em `.github/workflows`:
 Configure estes secrets no repositorio:
 
 - `DEPLOY_HOST`: IP ou dominio da VPS
-- `DEPLOY_USER`: usuario SSH da VPS
+- `DEPLOY_USER`: usuario SSH da VPS, por exemplo `root`
 - `DEPLOY_PORT`: porta SSH da VPS, normalmente `22`
-- `DEPLOY_SSH_KEY`: chave privada usada pelo GitHub Actions
+- `DEPLOY_PASSWORD`: senha SSH do usuario da VPS
 - `DEPLOY_PATH`: caminho do projeto na VPS, por exemplo `/opt/nv-copa`
 - `GHCR_USERNAME`: usuario do GitHub com acesso ao pacote no GHCR
 - `GHCR_TOKEN`: token com permissao de leitura do pacote no GHCR
