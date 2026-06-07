@@ -1,0 +1,14 @@
+services:
+  app:
+    image: ${IMAGE:?defina a variavel IMAGE com a imagem do GHCR}
+    container_name: nv-copa
+    restart: unless-stopped
+    environment:
+      ADDR: ":8080"
+      DATABASE_PATH: "/data/copa.db"
+      TZ: "America/Sao_Paulo"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+      - ./backups:/backups
