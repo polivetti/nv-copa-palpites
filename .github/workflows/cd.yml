@@ -56,9 +56,10 @@ jobs:
           script_stop: true
           envs: IMAGE_NAME
           script: |
+            export PATH=$PATH:/usr/bin:/usr/local/bin
             export IMAGE="${IMAGE_NAME}:latest"
-            export GHCR_USERNAME="${{ secrets.GHCR_USERNAME }}"
-            export GHCR_TOKEN="${{ secrets.GHCR_TOKEN }}"
-            export DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
-            cd "$DEPLOY_PATH"
-            sh ./scripts/deploy.sh
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            cd "${{ secrets.DEPLOY_PATH }}"
+            docker pull "$IMAGE"
+            IMAGE="$IMAGE" docker compose -f docker-compose.prod.yml up -d
+            docker image prune -f
