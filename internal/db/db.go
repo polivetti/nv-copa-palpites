@@ -66,6 +66,37 @@ type RankingRow struct {
 	ResultHits int64
 }
 
+type GroupResult struct {
+	GroupName string
+	TeamName  string
+	Position  int
+}
+
+type UserFixtureHit struct {
+	HomeTeam  string
+	AwayTeam  string
+	PredHome  int64
+	PredAway  int64
+	RealHome  int64
+	RealAway  int64
+	Points    int
+	HitType   string
+}
+
+type UserGroupHit struct {
+	GroupName string
+	Points    int
+	HitType   string
+}
+
+type UserRanking struct {
+	Position      int
+	UserName      string
+	TotalPoints   int
+	FixtureHits   []UserFixtureHit
+	GroupHits     []UserGroupHit
+}
+
 type PodiumPrediction struct {
 	UserID   int64
 	Champion string
@@ -205,6 +236,14 @@ CREATE TABLE IF NOT EXISTS fixture_predictions (
 	created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (user_id, fixture_id)
+);
+
+CREATE TABLE IF NOT EXISTS group_results (
+	group_name TEXT NOT NULL,
+	team_name TEXT NOT NULL,
+	position INTEGER NOT NULL,
+	created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (group_name, team_name)
 );
 `)
 	if err != nil {
@@ -889,6 +928,265 @@ func (s *Store) ensureUserColumns() error {
 		}
 	}
 	return nil
+}
+
+func (s *Store) SaveGroupResults(groupName string, results []GroupResult) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec("DELETE FROM group_results WHERE group_name = ?", groupName); err != nil {
+		return err
+	}
+	for _, r := range results {
+		if _, err := tx.Exec(
+			"INSERT INTO group_results (group_name, team_name, position) VALUES (?, ?, ?)",
+			r.GroupName, r.TeamName, r.Position,
+		); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (s *Store) GroupResults() ([]GroupResult, error) {
+	rows, err := s.db.Query("SELECT group_name, team_name, position FROM group_results ORDER BY group_name, position")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var results []GroupResult
+	for rows.Next() {
+		var r GroupResult
+		if err := rows.Scan(&r.GroupName, &r.TeamName, &r.Position); err != nil {
+			return nil, err
+		}
+		results = append(results, r)
+	}
+	return results, rows.Err()
+}
+
+func (s *Store) AllUsers() ([]User, error) {
+	rows, err := s.db.Query("SELECT id, name, is_admin, CASE WHEN groups_locked_at IS NOT NULL THEN 1 ELSE 0 END FROM users ORDER BY name")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var users []User
+	for rows.Next() {
+		var u User
+		var isAdmin, groupsLocked int
+		if err := rows.Scan(&u.ID, &u.Name, &isAdmin, &groupsLocked); err != nil {
+			return nil, err
+		}
+		u.IsAdmin = isAdmin == 1
+		u.GroupsLocked = groupsLocked == 1
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
+func (s *Store) AllFixturePredictionsForUser(userID int64) ([]FixturePrediction, error) {
+	rows, err := s.db.Query(`
+SELECT
+	f.id, f.round_number, f.group_name, f.match_date, f.home_team, f.away_team, f.home_score, f.away_score,
+	p.home_score, p.away_score
+FROM fixtures f
+LEFT JOIN fixture_predictions p ON p.fixture_id = f.id AND p.user_id = ?
+WHERE f.stage = 'groups'
+ORDER BY f.match_date, f.id
+`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var fixtures []FixturePrediction
+	for rows.Next() {
+		var fp FixturePrediction
+		var matchDate string
+		if err := rows.Scan(
+			&fp.ID, &fp.Round, &fp.GroupName, &matchDate,
+			&fp.HomeTeam, &fp.AwayTeam, &fp.HomeScore, &fp.AwayScore,
+			&fp.PredHomeScore, &fp.PredAwayScore,
+		); err != nil {
+			return nil, err
+		}
+		parsed, err := time.Parse("2006-01-02", matchDate)
+		if err != nil {
+			return nil, err
+		}
+		fp.MatchDate = parsed
+		fixtures = append(fixtures, fp)
+	}
+	return fixtures, rows.Err()
+}
+
+func (s *Store) FullRanking() ([]UserRanking, error) {
+	users, err := s.AllUsers()
+	if err != nil {
+		return nil, err
+	}
+	groupResults, err := s.GroupResults()
+	if err != nil {
+		return nil, err
+	}
+
+	actualByGroup := make(map[string]map[int]string)
+	for _, r := range groupResults {
+		if actualByGroup[r.GroupName] == nil {
+			actualByGroup[r.GroupName] = make(map[int]string)
+		}
+		actualByGroup[r.GroupName][r.Position] = r.TeamName
+	}
+
+	var rankings []UserRanking
+	for _, u := range users {
+		if u.IsAdmin {
+			continue
+		}
+		ranking := UserRanking{UserName: u.Name}
+
+		fixtures, err := s.AllFixturePredictionsForUser(u.ID)
+		if err != nil {
+			return nil, err
+		}
+		for _, f := range fixtures {
+			if !f.HomeScore.Valid || !f.AwayScore.Valid {
+				continue
+			}
+			if !f.PredHomeScore.Valid || !f.PredAwayScore.Valid {
+				continue
+			}
+			rh, ra := f.HomeScore.Int64, f.AwayScore.Int64
+			ph, pa := f.PredHomeScore.Int64, f.PredAwayScore.Int64
+
+			hit := UserFixtureHit{
+				HomeTeam: f.HomeTeam, AwayTeam: f.AwayTeam,
+				PredHome: ph, PredAway: pa,
+				RealHome: rh, RealAway: ra,
+			}
+
+			if ph == rh && pa == ra {
+				hit.Points = 3
+				hit.HitType = "exact"
+				ranking.FixtureHits = append(ranking.FixtureHits, hit)
+				ranking.TotalPoints += 3
+			} else if outcome(ph, pa) == outcome(rh, ra) {
+				hit.Points = 1
+				hit.HitType = "outcome"
+				ranking.FixtureHits = append(ranking.FixtureHits, hit)
+				ranking.TotalPoints += 1
+			}
+		}
+
+		predictions, err := s.GroupPredictions(u.ID)
+		if err != nil {
+			return nil, err
+		}
+		predByGroup := make(map[string]map[int]string)
+		for _, p := range predictions {
+			if predByGroup[p.GroupName] == nil {
+				predByGroup[p.GroupName] = make(map[int]string)
+			}
+			predByGroup[p.GroupName][p.Position] = p.TeamName
+		}
+
+		for groupName, actual := range actualByGroup {
+			pred := predByGroup[groupName]
+			if pred == nil {
+				continue
+			}
+
+			actual1, actual2 := actual[1], actual[2]
+			pred1, pred2 := pred[1], pred[2]
+
+			if actual1 != "" && actual2 != "" && pred1 != "" && pred2 != "" {
+				if pred1 == actual1 && pred2 == actual2 {
+					ranking.GroupHits = append(ranking.GroupHits, UserGroupHit{
+						GroupName: groupName, Points: 5, HitType: "exact_order",
+					})
+					ranking.TotalPoints += 5
+				} else if pred1 == actual2 && pred2 == actual1 {
+					ranking.GroupHits = append(ranking.GroupHits, UserGroupHit{
+						GroupName: groupName, Points: 3, HitType: "both_qualify",
+					})
+					ranking.TotalPoints += 3
+				} else {
+					qualifiedSet := map[string]bool{actual1: true, actual2: true}
+					predSet := map[string]bool{pred1: true, pred2: true}
+					matchCount := 0
+					for t := range predSet {
+						if qualifiedSet[t] {
+							matchCount++
+						}
+					}
+					if matchCount == 1 {
+						ranking.GroupHits = append(ranking.GroupHits, UserGroupHit{
+							GroupName: groupName, Points: 0, HitType: "one_qualify",
+						})
+					}
+				}
+			}
+
+			actual3 := actual[3]
+			pred3 := pred[3]
+			if actual3 != "" && pred3 != "" && pred3 == actual3 {
+				ranking.GroupHits = append(ranking.GroupHits, UserGroupHit{
+					GroupName: groupName, Points: 2, HitType: "third",
+				})
+				ranking.TotalPoints += 2
+			}
+		}
+
+		rankings = append(rankings, ranking)
+	}
+
+	sortRankings(rankings)
+	for i := range rankings {
+		rankings[i].Position = i + 1
+	}
+	return rankings, nil
+}
+
+func outcome(home, away int64) int {
+	if home > away {
+		return 1
+	}
+	if home < away {
+		return -1
+	}
+	return 0
+}
+
+func sortRankings(rankings []UserRanking) {
+	for i := 0; i < len(rankings); i++ {
+		for j := i + 1; j < len(rankings); j++ {
+			if rankings[j].TotalPoints > rankings[i].TotalPoints {
+				rankings[i], rankings[j] = rankings[j], rankings[i]
+			} else if rankings[j].TotalPoints == rankings[i].TotalPoints {
+				jExact := countExact(rankings[j].FixtureHits)
+				iExact := countExact(rankings[i].FixtureHits)
+				if jExact > iExact {
+					rankings[i], rankings[j] = rankings[j], rankings[i]
+				} else if jExact == iExact && rankings[i].UserName > rankings[j].UserName {
+					rankings[i], rankings[j] = rankings[j], rankings[i]
+				}
+			}
+		}
+	}
+}
+
+func countExact(hits []UserFixtureHit) int {
+	count := 0
+	for _, h := range hits {
+		if h.HitType == "exact" {
+			count++
+		}
+	}
+	return count
 }
 
 func validateCompleteGroupPredictionSet(predictions []GroupPrediction) error {

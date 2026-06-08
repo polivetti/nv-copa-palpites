@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ranking - NV Copa</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Bolao da Copa</p>
+      <h1>NV Copa</h1>
+    </div>
+    <form class="session-form" method="post" action="/logout">
+      <span class="pill">{{ .User.Name }}</span>
+      <button type="submit" class="ghost-button">Sair</button>
+    </form>
+  </header>
+
+  <main class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-block">
+        <p class="eyebrow dark">Menu</p>
+        <nav class="side-nav">
+          <a href="/">Resumo</a>
+          <a href="/groups">Palpites</a>
+          <a href="/ranking" class="active">Ranking</a>
+        </nav>
+      </div>
+    </aside>
+
+    <div class="content-shell">
+      <section class="panel ranking-section">
+        <header class="ranking-header">
+          <h2>Ranking dos jogadores</h2>
+          <p>Clique em um jogador para ver os acertos detalhados.</p>
+        </header>
+
+        <div class="ranking-list">
+          {{ range .Rankings }}
+            <details class="ranking-card">
+              <summary class="ranking-summary">
+                <span class="ranking-position">{{ .Position }}o</span>
+                <span class="ranking-name">{{ .UserName }}</span>
+                <span class="ranking-points">{{ .TotalPoints }} pts</span>
+              </summary>
+              <div class="ranking-details">
+                {{ if .FixtureHits }}
+                  <div class="ranking-detail-section">
+                    <h4>Acertos em jogos</h4>
+                    <ul class="hit-list">
+                      {{ range .FixtureHits }}
+                        <li class="hit-item {{ .HitType }}">
+                          <span class="hit-match">{{ teamDisplay .HomeTeam }} {{ .RealHome }} x {{ .RealAway }} {{ teamDisplay .AwayTeam }}</span>
+                          <span class="hit-pred">Palpite: {{ .PredHome }} x {{ .PredAway }}</span>
+                          <span class="hit-pts">+{{ .Points }}</span>
+                        </li>
+                      {{ end }}
+                    </ul>
+                  </div>
+                {{ end }}
+                {{ if .GroupHits }}
+                  <div class="ranking-detail-section">
+                    <h4>Acertos nos grupos</h4>
+                    <ul class="hit-list">
+                      {{ range .GroupHits }}
+                        <li class="hit-item {{ .HitType }}">
+                          <span class="hit-match">{{ .GroupName }}
+                            {{ if eq .HitType "exact_order" }}- Ordem exata{{ end }}
+                            {{ if eq .HitType "both_qualify" }}- Classificados certos{{ end }}
+                            {{ if eq .HitType "third" }}- Terceiro colocado{{ end }}
+                          </span>
+                          <span class="hit-pts">+{{ .Points }}</span>
+                        </li>
+                      {{ end }}
+                    </ul>
+                  </div>
+                {{ end }}
+                {{ if and (not .FixtureHits) (not .GroupHits) }}
+                  <p class="no-hits">Nenhum acerto ainda.</p>
+                {{ end }}
+              </div>
+            </details>
+          {{ else }}
+            <p class="no-hits">Nenhum jogador no ranking ainda.</p>
+          {{ end }}
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

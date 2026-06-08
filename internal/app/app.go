@@ -51,6 +51,11 @@ type PodiumData struct {
 	Notice string
 }
 
+type RankingPageData struct {
+	User     db.User
+	Rankings []db.UserRanking
+}
+
 type GroupPicksData struct {
 	User       db.User
 	Groups     []GroupView
@@ -75,6 +80,7 @@ type GroupsPageData struct {
 	ActiveRoundTotal     int
 	ThirdCount           int
 	Locked               bool
+	GroupQualifiers      map[string]int
 	Error                string
 	Notice               string
 }
@@ -137,6 +143,9 @@ func New(store *db.Store) http.Handler {
 			return time.Now().UTC().After(t.UTC())
 		},
 		"teamDisplay": copa.TeamDisplay,
+		"qualifierPos": func(qualifiers map[string]int, teamName string) int {
+			return qualifiers[teamName]
+		},
 	}
 
 	templates := template.Must(template.New("").Funcs(funcs).ParseGlob("web/templates/*.html"))
@@ -153,6 +162,8 @@ func New(store *db.Store) http.Handler {
 	mux.HandleFunc("/group-picks/save", app.saveGroupPicks)
 	mux.HandleFunc("/groups", app.groupsPage)
 	mux.HandleFunc("/groups/results", app.saveFixtureResults)
+	mux.HandleFunc("/groups/qualifiers", app.saveGroupQualifiers)
+	mux.HandleFunc("/ranking", app.rankingPage)
 	mux.HandleFunc("/round-predictions", app.saveRoundPredictions)
 	return mux
 }
@@ -586,6 +597,16 @@ func (a *App) groupsPageDataFor(user db.User, selectedGroup string, selectedRoun
 		log.Printf("load active round fixtures in groups page: %v", err)
 	}
 	activePredicted, activeTotal := fixturePredictionProgress(activeFixtures)
+	groupResults, err := a.store.GroupResults()
+	if err != nil {
+		log.Printf("load group results: %v", err)
+	}
+	qualifiers := make(map[string]int)
+	for _, r := range groupResults {
+		if r.GroupName == selectedGroup {
+			qualifiers[r.TeamName] = r.Position
+		}
+	}
 	return GroupsPageData{
 		User:                 user,
 		SelectedGroup:        selectedGroup,
@@ -602,6 +623,7 @@ func (a *App) groupsPageDataFor(user db.User, selectedGroup string, selectedRoun
 		ActiveRoundTotal:     activeTotal,
 		ThirdCount:           thirdCount,
 		Locked:               locked,
+		GroupQualifiers:      qualifiers,
 	}
 }
 
@@ -717,6 +739,82 @@ func (a *App) saveFixtureResults(w http.ResponseWriter, r *http.Request) {
 	}
 	data := a.groupsPageDataFor(user, selectedGroup, selectedRound)
 	data.Notice = "Resultados oficiais atualizados."
+	a.render(w, "groups.html", data)
+}
+
+func (a *App) rankingPage(w http.ResponseWriter, r *http.Request) {
+	user, ok := a.requireAuth(w, r)
+	if !ok {
+		return
+	}
+	rankings, err := a.store.FullRanking()
+	if err != nil {
+		log.Printf("load ranking: %v", err)
+		http.Error(w, "erro ao carregar ranking", http.StatusInternalServerError)
+		return
+	}
+	a.render(w, "ranking.html", RankingPageData{User: user, Rankings: rankings})
+}
+
+func (a *App) saveGroupQualifiers(w http.ResponseWriter, r *http.Request) {
+	user, ok := a.requireAuth(w, r)
+	if !ok {
+		return
+	}
+	if !user.IsAdmin {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	selectedGroup := normalizeGroupName(r.FormValue("selected_group"))
+	if selectedGroup == "" {
+		http.Error(w, "grupo invalido", http.StatusBadRequest)
+		return
+	}
+	selectedRound, _ := strconv.Atoi(r.FormValue("selected_round"))
+	if selectedRound < 1 || selectedRound > 3 {
+		selectedRound = 1
+	}
+
+	var results []db.GroupResult
+	for _, group := range copa.Groups {
+		if group.Name != selectedGroup {
+			continue
+		}
+		for _, team := range group.Teams {
+			field := "qualifier_" + team.Name
+			value := strings.TrimSpace(r.FormValue(field))
+			if value == "" {
+				continue
+			}
+			position, err := strconv.Atoi(value)
+			if err != nil || position < 1 || position > 3 {
+				data := a.groupsPageDataFor(user, selectedGroup, selectedRound)
+				data.Error = "posicao invalida para " + team.Name
+				a.render(w, "groups.html", data)
+				return
+			}
+			results = append(results, db.GroupResult{
+				GroupName: selectedGroup,
+				TeamName:  team.Name,
+				Position:  position,
+			})
+		}
+	}
+
+	if err := a.store.SaveGroupResults(selectedGroup, results); err != nil {
+		data := a.groupsPageDataFor(user, selectedGroup, selectedRound)
+		data.Error = err.Error()
+		a.render(w, "groups.html", data)
+		return
+	}
+
+	data := a.groupsPageDataFor(user, selectedGroup, selectedRound)
+	data.Notice = "Classificados do grupo atualizados."
 	a.render(w, "groups.html", data)
 }
 

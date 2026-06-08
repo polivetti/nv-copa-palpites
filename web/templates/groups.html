@@ -25,7 +25,7 @@
         <nav class="side-nav">
           <a href="/">Resumo</a>
           <a href="/groups" class="active">Palpites</a>
-          <span class="nav-placeholder">Classificacao dos jogadores</span>
+          <a href="/ranking">Ranking</a>
         </nav>
       </div>
 
@@ -223,6 +223,36 @@
           </form>
         </section>
       </section>
+
+      {{ if .User.IsAdmin }}
+      <section class="panel qualifier-section">
+        <header class="qualifier-header">
+          <h2>Classificados oficiais - {{ .SelectedGroup }}</h2>
+          <p>Defina quem realmente se classificou neste grupo.</p>
+        </header>
+        <form method="post" action="/groups/qualifiers" class="qualifier-form">
+          <input type="hidden" name="selected_group" value="{{ .SelectedGroup }}">
+          <input type="hidden" name="selected_round" value="{{ .SelectedRound }}">
+          <div class="qualifier-list">
+            {{ range .SelectedGroupTeams }}
+              <div class="qualifier-row">
+                <span class="team-name"><span class="flag">{{ .Flag }}</span>{{ .Display }}</span>
+                <select name="qualifier_{{ .Name }}">
+                  <option value="">-</option>
+                  <option value="1" {{ if eq (qualifierPos $.GroupQualifiers .Name) 1 }}selected{{ end }}>1o</option>
+                  <option value="2" {{ if eq (qualifierPos $.GroupQualifiers .Name) 2 }}selected{{ end }}>2o</option>
+                  <option value="3" {{ if eq (qualifierPos $.GroupQualifiers .Name) 3 }}selected{{ end }}>3o</option>
+                </select>
+              </div>
+            {{ end }}
+          </div>
+          <div class="sticky-actions">
+            <span>Definir classificados oficiais para pontuacao do ranking.</span>
+            <button type="submit">Salvar classificados</button>
+          </div>
+        </form>
+      </section>
+      {{ end }}
     </div>
   </main>
 </body>
