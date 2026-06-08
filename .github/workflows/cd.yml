@@ -8,12 +8,11 @@ on:
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/nv-copa
+  DOMAIN: copa.newvisionsoftware.com.br
 
 jobs:
-  publish-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: prod
     permissions:
       contents: read
       packages: write
@@ -46,20 +45,71 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Deploy on VPS
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          port: ${{ secrets.DEPLOY_PORT || '22' }}
-          password: ${{ secrets.DEPLOY_PASSWORD }}
-          script_stop: true
-          envs: IMAGE_NAME
-          script: |
-            export PATH=$PATH:/usr/bin:/usr/local/bin:/snap/bin:/usr/libexec/docker/cli-plugins
-            export IMAGE="${IMAGE_NAME}:latest"
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
-            cd "${{ secrets.DEPLOY_PATH }}"
-            docker pull "$IMAGE"
-            IMAGE="$IMAGE" docker compose -f docker-compose.prod.yml up -d
-            docker image prune -f
+  deploy:
+    needs: build
+    runs-on: self-hosted
+    environment:
+      name: prod
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+      - name: Pull image
+        run: docker pull "${{ env.IMAGE_NAME }}:latest"
+
+      - name: Install nginx and certbot
+        run: |
+          if ! command -v nginx &>/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y nginx certbot python3-certbot-nginx
+          fi
+          sudo mkdir -p /var/www/certbot
+
+      - name: Configure nginx (HTTP)
+        run: |
+          sudo cp nginx/copa.conf /etc/nginx/sites-available/${{ env.DOMAIN }}
+          sudo ln -sf /etc/nginx/sites-available/${{ env.DOMAIN }} /etc/nginx/sites-enabled/${{ env.DOMAIN }}
+          sudo rm -f /etc/nginx/sites-enabled/default
+          sudo nginx -t
+          sudo systemctl enable nginx
+          sudo systemctl reload nginx
+
+      - name: Obtain SSL certificate
+        run: |
+          if [ ! -d "/etc/letsencrypt/live/${{ env.DOMAIN }}" ]; then
+            sudo certbot certonly --webroot -w /var/www/certbot \
+              -d ${{ env.DOMAIN }} \
+              --email paulo.olivetti@gmail.com \
+              --agree-tos --non-interactive
+          fi
+
+      - name: Configure nginx (SSL)
+        run: |
+          if [ -d "/etc/letsencrypt/live/${{ env.DOMAIN }}" ]; then
+            sudo cp nginx/copa-ssl.conf /etc/nginx/sites-available/${{ env.DOMAIN }}
+            sudo nginx -t
+            sudo systemctl reload nginx
+            echo "SSL configurado com sucesso"
+          else
+            echo "::warning::Certificado SSL nao encontrado, mantendo HTTP"
+          fi
+
+      - name: Deploy
+        run: |
+          cd "${{ secrets.DEPLOY_PATH }}"
+          IMAGE="${{ env.IMAGE_NAME }}:latest" docker compose -f docker-compose.prod.yml up -d
+          docker image prune -f
+
+      - name: Verify SSL
+        run: |
+          sleep 5
+          if curl -sSf --max-time 10 "https://${{ env.DOMAIN }}" -o /dev/null 2>/dev/null; then
+            echo "SSL OK - https://${{ env.DOMAIN }} respondendo"
+          else
+            echo "::warning::HTTPS ainda nao responde, verificar DNS e certificado"
+            curl -sSf --max-time 10 "http://${{ env.DOMAIN }}" -o /dev/null && echo "HTTP OK" || echo "::error::HTTP tambem nao responde"
+          fi
