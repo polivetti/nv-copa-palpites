@@ -49,6 +49,7 @@ type UserFixtureHit struct {
 	RealAway  int64
 	Points    int
 	HitType   string
+	HasResult bool
 }
 
 type UserGroupHit struct {
@@ -63,6 +64,7 @@ type UserRanking struct {
 	TotalPoints   int
 	FixtureHits   []UserFixtureHit
 	GroupHits     []UserGroupHit
+	Podium        PodiumPrediction
 }
 
 type PodiumPrediction struct {
@@ -94,6 +96,7 @@ type FixturePrediction struct {
 	Fixture
 	PredHomeScore sql.NullInt64
 	PredAwayScore sql.NullInt64
+	PredCreatedAt sql.NullString
 }
 
 func Open(path string) (*Store, error) {
@@ -597,7 +600,7 @@ func (s *Store) GroupFixturePredictions(userID int64, round int, groupName strin
 	rows, err := s.db.Query(`
 SELECT
 	f.id, f.round_number, f.group_name, f.match_date, f.home_team, f.away_team, f.home_score, f.away_score,
-	p.home_score, p.away_score
+	p.home_score, p.away_score, p.created_at
 FROM fixtures f
 LEFT JOIN fixture_predictions p ON p.fixture_id = f.id AND p.user_id = ?
 WHERE f.stage = 'groups' AND f.round_number = ? AND f.group_name = ?
@@ -623,6 +626,7 @@ ORDER BY f.match_date, f.id
 			&fixture.AwayScore,
 			&fixture.PredHomeScore,
 			&fixture.PredAwayScore,
+			&fixture.PredCreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -650,6 +654,19 @@ func (s *Store) SaveFixturePredictions(userID int64, predictions map[int64][2]in
 		}
 		if !predictionOpen(now, fixture.MatchDate) {
 			return errors.New("o prazo para palpitar esse jogo ja encerrou")
+		}
+		if fixture.HomeScore.Valid && fixture.AwayScore.Valid {
+			return errors.New("o resultado desse jogo ja foi registrado, palpite nao pode ser alterado")
+		}
+		var createdAt sql.NullString
+		if err := tx.QueryRow("SELECT created_at FROM fixture_predictions WHERE user_id = ? AND fixture_id = ?", userID, fixtureID).Scan(&createdAt); err != nil && err != sql.ErrNoRows {
+			return err
+		}
+		if createdAt.Valid {
+			created, err := time.Parse("2006-01-02 15:04:05", createdAt.String)
+			if err == nil && now.Sub(created) > 12*time.Hour {
+				return errors.New("o palpite so pode ser alterado em ate 12 horas apos ser criado")
+			}
 		}
 		if _, err := tx.Exec(`
 INSERT INTO fixture_predictions (user_id, fixture_id, home_score, away_score)
@@ -852,37 +869,45 @@ func (s *Store) FullRanking() ([]UserRanking, error) {
 	for _, u := range users {
 		ranking := UserRanking{UserName: u.Name}
 
+		podium, err := s.PodiumPrediction(u.ID)
+		if err == nil {
+			ranking.Podium = podium
+		}
+
 		fixtures, err := s.AllFixturePredictionsForUser(u.ID)
 		if err != nil {
 			return nil, err
 		}
 		for _, f := range fixtures {
-			if !f.HomeScore.Valid || !f.AwayScore.Valid {
-				continue
-			}
 			if !f.PredHomeScore.Valid || !f.PredAwayScore.Valid {
 				continue
 			}
-			rh, ra := f.HomeScore.Int64, f.AwayScore.Int64
 			ph, pa := f.PredHomeScore.Int64, f.PredAwayScore.Int64
-
 			hit := UserFixtureHit{
 				HomeTeam: f.HomeTeam, AwayTeam: f.AwayTeam,
 				PredHome: ph, PredAway: pa,
-				RealHome: rh, RealAway: ra,
 			}
 
-			if ph == rh && pa == ra {
-				hit.Points = 3
-				hit.HitType = "exact"
-				ranking.FixtureHits = append(ranking.FixtureHits, hit)
-				ranking.TotalPoints += 3
-			} else if outcome(ph, pa) == outcome(rh, ra) {
-				hit.Points = 1
-				hit.HitType = "outcome"
-				ranking.FixtureHits = append(ranking.FixtureHits, hit)
-				ranking.TotalPoints += 1
+			if f.HomeScore.Valid && f.AwayScore.Valid {
+				rh, ra := f.HomeScore.Int64, f.AwayScore.Int64
+				hit.HasResult = true
+				hit.RealHome = rh
+				hit.RealAway = ra
+				if ph == rh && pa == ra {
+					hit.Points = 3
+					hit.HitType = "exact"
+					ranking.TotalPoints += 3
+				} else if outcome(ph, pa) == outcome(rh, ra) {
+					hit.Points = 1
+					hit.HitType = "outcome"
+					ranking.TotalPoints += 1
+				} else {
+					hit.HitType = "miss"
+				}
+			} else {
+				hit.HitType = "pending"
 			}
+			ranking.FixtureHits = append(ranking.FixtureHits, hit)
 		}
 
 		predictions, err := s.GroupPredictions(u.ID)

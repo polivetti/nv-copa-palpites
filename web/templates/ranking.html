@@ -46,15 +46,25 @@
                 <span class="ranking-points">{{ .TotalPoints }} pts</span>
               </summary>
               <div class="ranking-details">
+                {{ if .Podium.Champion }}
+                  <div class="ranking-detail-section">
+                    <h4>Palpite de podio</h4>
+                    <ol class="podium-picks">
+                      <li><span class="podium-label">Campeao:</span> <strong>{{ teamDisplay .Podium.Champion }}</strong></li>
+                      <li><span class="podium-label">Vice:</span> <strong>{{ teamDisplay .Podium.RunnerUp }}</strong></li>
+                      <li><span class="podium-label">Terceiro:</span> <strong>{{ teamDisplay .Podium.Third }}</strong></li>
+                    </ol>
+                  </div>
+                {{ end }}
                 {{ if .FixtureHits }}
                   <div class="ranking-detail-section">
-                    <h4>Acertos em jogos</h4>
+                    <h4>Palpites em jogos</h4>
                     <ul class="hit-list">
                       {{ range .FixtureHits }}
                         <li class="hit-item {{ .HitType }}">
-                          <span class="hit-match">{{ teamDisplay .HomeTeam }} {{ .RealHome }} x {{ .RealAway }} {{ teamDisplay .AwayTeam }}</span>
+                          <span class="hit-match">{{ teamDisplay .HomeTeam }} {{ if .HasResult }}{{ .RealHome }} x {{ .RealAway }}{{ else }}- x -{{ end }} {{ teamDisplay .AwayTeam }}</span>
                           <span class="hit-pred">Palpite: {{ .PredHome }} x {{ .PredAway }}</span>
-                          <span class="hit-pts">+{{ .Points }}</span>
+                          {{ if .HasResult }}<span class="hit-pts">+{{ .Points }}</span>{{ else }}<span class="hit-pts">-</span>{{ end }}
                         </li>
                       {{ end }}
                     </ul>

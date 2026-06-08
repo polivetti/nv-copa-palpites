@@ -47,6 +47,11 @@
     </aside>
 
     <div class="content-shell">
+      <nav class="mobile-group-switcher">
+        <a class="group-arrow" id="group-prev">&#8249;</a>
+        <span class="group-current">{{ .SelectedGroup }}</span>
+        <a class="group-arrow" id="group-next">&#8250;</a>
+      </nav>
       {{ if .Error }}<div class="alert error">{{ .Error }}</div>{{ end }}
       {{ if .Notice }}<div class="alert notice">{{ .Notice }}</div>{{ end }}
 
@@ -199,19 +204,21 @@
                     <span class="round-team-name">{{ .HomeDisplay }}</span>
                     <span class="flag">{{ .HomeFlag }}</span>
                     <div class="match-inputs">
-                      <input type="number" min="0" name="fixture_{{ .ID }}_home" value="{{ .PredHomeScore }}" {{ if .Locked }}disabled{{ end }}>
+                      <input type="number" min="0" name="fixture_{{ .ID }}_home" value="{{ .PredHomeScore }}" {{ if or .Locked .PredictionExpired }}disabled{{ end }}>
                       <span>x</span>
-                      <input type="number" min="0" name="fixture_{{ .ID }}_away" value="{{ .PredAwayScore }}" {{ if .Locked }}disabled{{ end }}>
+                      <input type="number" min="0" name="fixture_{{ .ID }}_away" value="{{ .PredAwayScore }}" {{ if or .Locked .PredictionExpired }}disabled{{ end }}>
                     </div>
                     <span class="flag">{{ .AwayFlag }}</span>
                     <span class="round-team-name">{{ .AwayDisplay }}</span>
                   </div>
                   {{ if .HasResult }}
                     <small>Resultado oficial ja informado.</small>
+                  {{ else if .PredictionExpired }}
+                    <small>O palpite nao pode mais ser alterado. <span class="tooltip-trigger" title="O palpite so pode ser alterado ate 12 horas apos ser criado e ate o dia anterior ao jogo.">?</span></small>
                   {{ else if .Locked }}
                     <small>Prazo encerrado. O palpite fecha na vespera do jogo.</small>
                   {{ else }}
-                    <small>Palpite aberto ate a vespera do jogo.</small>
+                    <small>Palpite aberto ate a vespera do jogo. <span class="tooltip-trigger" title="O palpite so pode ser alterado ate 12 horas apos ser criado e ate o dia anterior ao jogo.">?</span></small>
                   {{ end }}
                 </article>
               {{ end }}
@@ -255,5 +262,22 @@
       {{ end }}
     </div>
   </main>
+  <script>
+  (function() {
+    var groups = [{{ range $i, $g := .Groups }}{{ if $i }},{{ end }}"{{ $g.Name }}"{{ end }}];
+    var current = "{{ .SelectedGroup }}";
+    var round = "{{ .SelectedRound }}";
+    var idx = groups.indexOf(current);
+    var prev = document.getElementById("group-prev");
+    var next = document.getElementById("group-next");
+    function go(i) {
+      window.location.href = "/groups?group=" + encodeURIComponent(groups[i]) + "&round=" + round;
+    }
+    prev.onclick = function(e) { e.preventDefault(); if (idx > 0) go(idx - 1); };
+    next.onclick = function(e) { e.preventDefault(); if (idx < groups.length - 1) go(idx + 1); };
+    if (idx <= 0) prev.classList.add("disabled");
+    if (idx >= groups.length - 1) next.classList.add("disabled");
+  })();
+  </script>
 </body>
 </html>

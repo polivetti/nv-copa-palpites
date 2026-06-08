@@ -127,8 +127,9 @@ type FixtureView struct {
 	RealAwayScore string
 	PredHomeScore string
 	PredAwayScore string
-	Locked        bool
-	HasResult     bool
+	Locked            bool
+	HasResult         bool
+	PredictionExpired bool
 }
 
 func New(store *db.Store) http.Handler {
@@ -947,18 +948,25 @@ func fixtureViews(fixtures []db.FixturePrediction) []FixtureView {
 	for _, fixture := range fixtures {
 		homeTeam, _ := copa.TeamByName(fixture.HomeTeam)
 		awayTeam, _ := copa.TeamByName(fixture.AwayTeam)
+		predExpired := false
+		if fixture.PredCreatedAt.Valid && fixture.PredHomeScore.Valid {
+			if created, err := time.Parse("2006-01-02 15:04:05", fixture.PredCreatedAt.String); err == nil {
+				predExpired = now.Sub(created) > 12*time.Hour
+			}
+		}
 		view := FixtureView{
-			ID:          fixture.ID,
-			GroupName:   fixture.GroupName,
-			MatchDate:   fixture.MatchDate.Format("02/01"),
-			HomeTeam:    fixture.HomeTeam,
-			HomeDisplay: copa.TeamDisplay(fixture.HomeTeam),
-			HomeFlag:    homeTeam.Flag,
-			AwayTeam:    fixture.AwayTeam,
-			AwayDisplay: copa.TeamDisplay(fixture.AwayTeam),
-			AwayFlag:    awayTeam.Flag,
-			Locked:      !isPredictionOpen(now, fixture.MatchDate),
-			HasResult:   fixture.HomeScore.Valid && fixture.AwayScore.Valid,
+			ID:                fixture.ID,
+			GroupName:         fixture.GroupName,
+			MatchDate:         fixture.MatchDate.Format("02/01"),
+			HomeTeam:          fixture.HomeTeam,
+			HomeDisplay:       copa.TeamDisplay(fixture.HomeTeam),
+			HomeFlag:          homeTeam.Flag,
+			AwayTeam:          fixture.AwayTeam,
+			AwayDisplay:       copa.TeamDisplay(fixture.AwayTeam),
+			AwayFlag:          awayTeam.Flag,
+			Locked:            !isPredictionOpen(now, fixture.MatchDate),
+			HasResult:         fixture.HomeScore.Valid && fixture.AwayScore.Valid,
+			PredictionExpired: predExpired,
 		}
 		if fixture.PredHomeScore.Valid {
 			view.PredHomeScore = strconv.FormatInt(fixture.PredHomeScore.Int64, 10)

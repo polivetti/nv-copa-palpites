@@ -944,7 +944,54 @@ select {
   background: #eef5f1;
 }
 
+.mobile-group-switcher {
+  display: none;
+}
+
 @media (max-width: 760px) {
+  .mobile-group-switcher {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 12px 0;
+  }
+
+  .group-current {
+    font-weight: 700;
+    font-size: 18px;
+    min-width: 100px;
+    text-align: center;
+  }
+
+  .group-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 24px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .group-arrow.disabled {
+    background: var(--line);
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  .sidebar .group-nav,
+  .sidebar .group-nav + .sidebar-block,
+  .sidebar-block:has(.group-nav) {
+    display: none;
+  }
+
   .topbar {
     align-items: flex-start;
     flex-direction: column;
@@ -1114,6 +1161,19 @@ select {
   background: #e6f4ea;
 }
 
+.hit-item.outcome {
+  background: #eef6ff;
+}
+
+.hit-item.pending {
+  background: #f9f9f6;
+  opacity: 0.7;
+}
+
+.hit-item.miss {
+  background: #fef2f2;
+}
+
 .hit-match {
   font-weight: 500;
 }
@@ -1178,4 +1238,37 @@ select {
   border: 1px solid var(--line);
   border-radius: 4px;
   font-size: 14px;
+}
+
+.podium-picks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.podium-picks li {
+  font-size: 14px;
+}
+
+.podium-label {
+  color: var(--muted);
+}
+
+.tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--muted);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: help;
+  vertical-align: middle;
+  margin-left: 4px;
 }
