@@ -887,6 +887,10 @@ select {
   max-width: 880px;
   margin: 0 auto;
   padding: clamp(28px, 8vw, 72px) clamp(16px, 4vw, 32px);
+  min-height: 100vh;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
 }
 
 .auth-hero {
@@ -907,6 +911,7 @@ select {
 
 .single-auth {
   grid-template-columns: minmax(0, 420px);
+  justify-content: center;
 }
 
 .auth-grid .alert {
@@ -916,6 +921,7 @@ select {
 .auth-panel {
   display: grid;
   gap: 10px;
+  text-align: left;
 }
 
 .auth-panel h2 {
