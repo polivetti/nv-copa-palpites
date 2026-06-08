@@ -25,11 +25,6 @@ type User struct {
 	GroupsLocked bool
 }
 
-type Player struct {
-	ID   int64
-	Name string
-}
-
 type Match struct {
 	ID        int64
 	HomeTeam  string
@@ -37,33 +32,6 @@ type Match struct {
 	StartsAt  time.Time
 	HomeScore sql.NullInt64
 	AwayScore sql.NullInt64
-}
-
-type Prediction struct {
-	ID        int64
-	PlayerID  int64
-	MatchID   int64
-	HomeScore int64
-	AwayScore int64
-}
-
-type PredictionRow struct {
-	MatchID       int64
-	HomeTeam      string
-	AwayTeam      string
-	StartsAt      time.Time
-	ResultHome    sql.NullInt64
-	ResultAway    sql.NullInt64
-	PredictionID  sql.NullInt64
-	PredHomeScore sql.NullInt64
-	PredAwayScore sql.NullInt64
-}
-
-type RankingRow struct {
-	PlayerName string
-	Points     int64
-	ExactHits  int64
-	ResultHits int64
 }
 
 type GroupResult struct {
@@ -167,12 +135,6 @@ CREATE TABLE IF NOT EXISTS sessions (
 	expires_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS players (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	name TEXT NOT NULL UNIQUE,
-	created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE IF NOT EXISTS matches (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	home_team TEXT NOT NULL,
@@ -181,17 +143,6 @@ CREATE TABLE IF NOT EXISTS matches (
 	home_score INTEGER,
 	away_score INTEGER,
 	created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS predictions (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
-	match_id INTEGER NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
-	home_score INTEGER NOT NULL,
-	away_score INTEGER NOT NULL,
-	created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	UNIQUE(player_id, match_id)
 );
 
 CREATE TABLE IF NOT EXISTS podium_predictions (
@@ -521,32 +472,6 @@ VALUES ('groups', ?, ?, ?, ?, ?)
 	return nil
 }
 
-func (s *Store) Players() ([]Player, error) {
-	rows, err := s.db.Query("SELECT id, name FROM players ORDER BY name")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var players []Player
-	for rows.Next() {
-		var player Player
-		if err := rows.Scan(&player.ID, &player.Name); err != nil {
-			return nil, err
-		}
-		players = append(players, player)
-	}
-	return players, rows.Err()
-}
-
-func (s *Store) CreatePlayer(name string) error {
-	if name == "" {
-		return errors.New("nome obrigatorio")
-	}
-	_, err := s.db.Exec("INSERT INTO players (name) VALUES (?)", name)
-	return err
-}
-
 func (s *Store) Matches() ([]Match, error) {
 	rows, err := s.db.Query("SELECT id, home_team, away_team, starts_at, home_score, away_score FROM matches ORDER BY starts_at")
 	if err != nil {
@@ -591,125 +516,6 @@ func (s *Store) CreateMatch(home, away, startsAt string) error {
 func (s *Store) SetResult(matchID, homeScore, awayScore int64) error {
 	_, err := s.db.Exec("UPDATE matches SET home_score = ?, away_score = ? WHERE id = ?", homeScore, awayScore, matchID)
 	return err
-}
-
-func (s *Store) PredictionsForPlayer(playerID int64) ([]PredictionRow, error) {
-	rows, err := s.db.Query(`
-SELECT
-	m.id,
-	m.home_team,
-	m.away_team,
-	m.starts_at,
-	m.home_score,
-	m.away_score,
-	p.id,
-	p.home_score,
-	p.away_score
-FROM matches m
-LEFT JOIN predictions p ON p.match_id = m.id AND p.player_id = ?
-ORDER BY m.starts_at
-`, playerID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var predictions []PredictionRow
-	for rows.Next() {
-		var row PredictionRow
-		var startsAt string
-		if err := rows.Scan(
-			&row.MatchID,
-			&row.HomeTeam,
-			&row.AwayTeam,
-			&startsAt,
-			&row.ResultHome,
-			&row.ResultAway,
-			&row.PredictionID,
-			&row.PredHomeScore,
-			&row.PredAwayScore,
-		); err != nil {
-			return nil, err
-		}
-		parsed, err := time.Parse(time.RFC3339, startsAt)
-		if err != nil {
-			return nil, fmt.Errorf("parse match time: %w", err)
-		}
-		row.StartsAt = parsed
-		predictions = append(predictions, row)
-	}
-	return predictions, rows.Err()
-}
-
-func (s *Store) UpsertPrediction(playerID, matchID, homeScore, awayScore int64) error {
-	var startsAt string
-	if err := s.db.QueryRow("SELECT starts_at FROM matches WHERE id = ?", matchID).Scan(&startsAt); err != nil {
-		return err
-	}
-	matchTime, err := time.Parse(time.RFC3339, startsAt)
-	if err != nil {
-		return err
-	}
-	if time.Now().UTC().After(matchTime) {
-		return errors.New("palpite fechado para esse jogo")
-	}
-
-	_, err = s.db.Exec(`
-INSERT INTO predictions (player_id, match_id, home_score, away_score)
-VALUES (?, ?, ?, ?)
-ON CONFLICT(player_id, match_id) DO UPDATE SET
-	home_score = excluded.home_score,
-	away_score = excluded.away_score,
-	updated_at = CURRENT_TIMESTAMP
-`, playerID, matchID, homeScore, awayScore)
-	return err
-}
-
-func (s *Store) Ranking() ([]RankingRow, error) {
-	rows, err := s.db.Query(`
-SELECT
-	pl.name,
-	COALESCE(SUM(
-		CASE
-			WHEN m.home_score IS NULL OR m.away_score IS NULL THEN 0
-			WHEN p.home_score = m.home_score AND p.away_score = m.away_score THEN 5
-			WHEN (p.home_score = p.away_score AND m.home_score = m.away_score)
-				OR (p.home_score > p.away_score AND m.home_score > m.away_score)
-				OR (p.home_score < p.away_score AND m.home_score < m.away_score) THEN 3
-			ELSE 0
-		END
-	), 0) AS points,
-	COALESCE(SUM(CASE WHEN p.home_score = m.home_score AND p.away_score = m.away_score THEN 1 ELSE 0 END), 0) AS exact_hits,
-	COALESCE(SUM(CASE
-		WHEN m.home_score IS NOT NULL
-			AND m.away_score IS NOT NULL
-			AND (
-				(p.home_score = p.away_score AND m.home_score = m.away_score)
-				OR (p.home_score > p.away_score AND m.home_score > m.away_score)
-				OR (p.home_score < p.away_score AND m.home_score < m.away_score)
-			)
-			AND NOT (p.home_score = m.home_score AND p.away_score = m.away_score)
-		THEN 1 ELSE 0 END), 0) AS result_hits
-FROM players pl
-LEFT JOIN predictions p ON p.player_id = pl.id
-LEFT JOIN matches m ON m.id = p.match_id
-GROUP BY pl.id, pl.name
-ORDER BY points DESC, exact_hits DESC, pl.name
-`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var ranking []RankingRow
-	for rows.Next() {
-		var row RankingRow
-		if err := rows.Scan(&row.PlayerName, &row.Points, &row.ExactHits, &row.ResultHits); err != nil {
-			return nil, err
-		}
-		ranking = append(ranking, row)
-	}
-	return ranking, rows.Err()
 }
 
 func (s *Store) CurrentGroupRound() (int, error) {
@@ -1044,9 +850,6 @@ func (s *Store) FullRanking() ([]UserRanking, error) {
 
 	var rankings []UserRanking
 	for _, u := range users {
-		if u.IsAdmin {
-			continue
-		}
 		ranking := UserRanking{UserName: u.Name}
 
 		fixtures, err := s.AllFixturePredictionsForUser(u.ID)
