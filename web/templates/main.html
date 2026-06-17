@@ -213,6 +213,7 @@
 
         <form class="round-form" hx-post="/round-predictions" hx-target="#app" hx-swap="outerHTML">
           <input type="hidden" name="selected_group" value="{{ .SelectedGroup }}">
+          <input type="hidden" name="selected_round" value="{{ .CurrentRound }}">
           <div class="round-match-list">
             {{ range .CurrentRoundFixtures }}
               <article class="round-match-card">

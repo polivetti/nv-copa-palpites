@@ -41,6 +41,7 @@ type GroupResult struct {
 }
 
 type UserFixtureHit struct {
+	Round     int
 	HomeTeam  string
 	AwayTeam  string
 	PredHome  int64
@@ -50,6 +51,12 @@ type UserFixtureHit struct {
 	Points    int
 	HitType   string
 	HasResult bool
+}
+
+type UserFixtureRound struct {
+	Round int
+	Label string
+	Hits  []UserFixtureHit
 }
 
 type UserGroupHit struct {
@@ -63,6 +70,7 @@ type UserRanking struct {
 	UserName      string
 	TotalPoints   int
 	FixtureHits   []UserFixtureHit
+	FixtureRounds []UserFixtureRound
 	GroupHits     []UserGroupHit
 	Podium        PodiumPrediction
 }
@@ -884,8 +892,11 @@ func (s *Store) FullRanking() ([]UserRanking, error) {
 			}
 			ph, pa := f.PredHomeScore.Int64, f.PredAwayScore.Int64
 			hit := UserFixtureHit{
-				HomeTeam: f.HomeTeam, AwayTeam: f.AwayTeam,
-				PredHome: ph, PredAway: pa,
+				Round:    f.Round,
+				HomeTeam: f.HomeTeam,
+				AwayTeam: f.AwayTeam,
+				PredHome: ph,
+				PredAway: pa,
 			}
 
 			if f.HomeScore.Valid && f.AwayScore.Valid {
@@ -909,6 +920,7 @@ func (s *Store) FullRanking() ([]UserRanking, error) {
 			}
 			ranking.FixtureHits = append(ranking.FixtureHits, hit)
 		}
+		ranking.FixtureRounds = fixtureRounds(ranking.FixtureHits)
 
 		predictions, err := s.GroupPredictions(u.ID)
 		if err != nil {
@@ -987,6 +999,27 @@ func outcome(home, away int64) int {
 		return -1
 	}
 	return 0
+}
+
+func fixtureRounds(hits []UserFixtureHit) []UserFixtureRound {
+	byRound := make(map[int][]UserFixtureHit)
+	for _, hit := range hits {
+		byRound[hit.Round] = append(byRound[hit.Round], hit)
+	}
+
+	var rounds []UserFixtureRound
+	for round := 1; round <= 3; round++ {
+		roundHits := byRound[round]
+		if len(roundHits) == 0 {
+			continue
+		}
+		rounds = append(rounds, UserFixtureRound{
+			Round: round,
+			Label: fmt.Sprintf("%da Rodada", round),
+			Hits:  roundHits,
+		})
+	}
+	return rounds
 }
 
 func sortRankings(rankings []UserRanking) {

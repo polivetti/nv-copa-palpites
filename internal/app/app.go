@@ -22,6 +22,8 @@ type App struct {
 	templates *template.Template
 }
 
+const activePredictionRound = 2
+
 type PageData struct {
 	User                 db.User
 	Podium               db.PodiumPrediction
@@ -509,11 +511,7 @@ func (a *App) loadData(user db.User, selectedGroup string) PageData {
 	}
 
 	groups, thirdCount := a.groupViews(user.ID)
-	currentRound, err := a.store.CurrentGroupRound()
-	if err != nil {
-		log.Printf("load current round: %v", err)
-		currentRound = 1
-	}
+	currentRound := activePredictionRound
 	fixtures, err := a.store.GroupFixturePredictions(user.ID, currentRound, selectedGroup)
 	if err != nil {
 		log.Printf("load fixtures: %v", err)
@@ -546,7 +544,7 @@ func (a *App) groupsPageData(r *http.Request, user db.User) GroupsPageData {
 	}
 	selectedRound, _ := strconv.Atoi(r.URL.Query().Get("round"))
 	if selectedRound < 1 || selectedRound > 3 {
-		selectedRound = 1
+		selectedRound = activePredictionRound
 	}
 	return a.groupsPageDataFor(user, selectedGroup, selectedRound)
 }
@@ -588,11 +586,7 @@ func (a *App) groupsPageDataFor(user db.User, selectedGroup string, selectedRoun
 	if err != nil {
 		log.Printf("load group page fixtures: %v", err)
 	}
-	currentRound, err := a.store.CurrentGroupRound()
-	if err != nil {
-		log.Printf("load current round in groups page: %v", err)
-		currentRound = 1
-	}
+	currentRound := activePredictionRound
 	activeFixtures, err := a.store.GroupFixturePredictions(user.ID, currentRound, selectedGroup)
 	if err != nil {
 		log.Printf("load active round fixtures in groups page: %v", err)

@@ -56,18 +56,33 @@
                     </ol>
                   </div>
                 {{ end }}
-                {{ if .FixtureHits }}
+                {{ if .FixtureRounds }}
                   <div class="ranking-detail-section">
                     <h4>Palpites em jogos</h4>
-                    <ul class="hit-list">
-                      {{ range .FixtureHits }}
-                        <li class="hit-item {{ .HitType }}">
-                          <span class="hit-match">{{ teamDisplay .HomeTeam }} {{ if .HasResult }}{{ .RealHome }} x {{ .RealAway }}{{ else }}- x -{{ end }} {{ teamDisplay .AwayTeam }}</span>
-                          <span class="hit-pred">Palpite: {{ .PredHome }} x {{ .PredAway }}</span>
-                          {{ if .HasResult }}<span class="hit-pts">+{{ .Points }}</span>{{ else }}<span class="hit-pts">-</span>{{ end }}
-                        </li>
+                    <div class="ranking-round-tabs">
+                      {{ $player := .Position }}
+                      {{ range $i, $round := .FixtureRounds }}
+                        <input type="radio" id="ranking-player-{{ $player }}-round-{{ .Round }}" name="ranking-player-{{ $player }}-round" {{ if eq $i 0 }}checked{{ end }}>
                       {{ end }}
-                    </ul>
+                      <div class="ranking-round-tab-list">
+                        {{ range .FixtureRounds }}
+                          <label for="ranking-player-{{ $player }}-round-{{ .Round }}">{{ .Label }}</label>
+                        {{ end }}
+                      </div>
+                      {{ range .FixtureRounds }}
+                        <div class="ranking-round-panel ranking-round-panel-{{ .Round }}">
+                          <ul class="hit-list">
+                            {{ range .Hits }}
+                              <li class="hit-item {{ .HitType }}">
+                                <span class="hit-match">{{ teamDisplay .HomeTeam }} {{ if .HasResult }}{{ .RealHome }} x {{ .RealAway }}{{ else }}- x -{{ end }} {{ teamDisplay .AwayTeam }}</span>
+                                <span class="hit-pred">Palpite: {{ .PredHome }} x {{ .PredAway }}</span>
+                                {{ if .HasResult }}<span class="hit-pts">+{{ .Points }}</span>{{ else }}<span class="hit-pts">-</span>{{ end }}
+                              </li>
+                            {{ end }}
+                          </ul>
+                        </div>
+                      {{ end }}
+                    </div>
                   </div>
                 {{ end }}
                 {{ if .GroupHits }}
@@ -87,7 +102,7 @@
                     </ul>
                   </div>
                 {{ end }}
-                {{ if and (not .FixtureHits) (not .GroupHits) }}
+                {{ if and (not .FixtureRounds) (not .GroupHits) }}
                   <p class="no-hits">Nenhum acerto ainda.</p>
                 {{ end }}
               </div>
