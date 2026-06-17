@@ -942,42 +942,37 @@ func (s *Store) FullRanking() ([]UserRanking, error) {
 
 			actual1, actual2 := actual[1], actual[2]
 			pred1, pred2 := pred[1], pred[2]
+			actual3, pred3 := actual[3], pred[3]
 
 			if actual1 != "" && actual2 != "" && pred1 != "" && pred2 != "" {
-				if pred1 == actual1 && pred2 == actual2 {
+				exactGroup := pred1 == actual1 && pred2 == actual2 && pred3 == actual3
+				if exactGroup {
 					ranking.GroupHits = append(ranking.GroupHits, UserGroupHit{
-						GroupName: groupName, Points: 5, HitType: "exact_order",
+						GroupName: groupName, Points: 5, HitType: "exact_group",
 					})
 					ranking.TotalPoints += 5
-				} else if pred1 == actual2 && pred2 == actual1 {
-					ranking.GroupHits = append(ranking.GroupHits, UserGroupHit{
-						GroupName: groupName, Points: 3, HitType: "both_qualify",
-					})
-					ranking.TotalPoints += 3
 				} else {
-					qualifiedSet := map[string]bool{actual1: true, actual2: true}
+					actualSet := map[string]bool{actual1: true, actual2: true}
+					if actual3 != "" {
+						actualSet[actual3] = true
+					}
 					predSet := map[string]bool{pred1: true, pred2: true}
+					if pred3 != "" {
+						predSet[pred3] = true
+					}
 					matchCount := 0
-					for t := range predSet {
-						if qualifiedSet[t] {
+					for team := range predSet {
+						if actualSet[team] {
 							matchCount++
 						}
 					}
-					if matchCount == 1 {
+					if matchCount > 0 {
 						ranking.GroupHits = append(ranking.GroupHits, UserGroupHit{
-							GroupName: groupName, Points: 0, HitType: "one_qualify",
+							GroupName: groupName, Points: matchCount, HitType: "qualified_teams",
 						})
+						ranking.TotalPoints += matchCount
 					}
 				}
-			}
-
-			actual3 := actual[3]
-			pred3 := pred[3]
-			if actual3 != "" && pred3 != "" && pred3 == actual3 {
-				ranking.GroupHits = append(ranking.GroupHits, UserGroupHit{
-					GroupName: groupName, Points: 2, HitType: "third",
-				})
-				ranking.TotalPoints += 2
 			}
 		}
 
