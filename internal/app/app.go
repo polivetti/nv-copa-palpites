@@ -129,6 +129,7 @@ type FixtureView struct {
 	RealAwayScore string
 	PredHomeScore string
 	PredAwayScore string
+	Locked            bool
 	HasResult         bool
 	PredictionExpired bool
 }
@@ -957,6 +958,7 @@ func fixtureViews(fixtures []db.FixturePrediction) []FixtureView {
 			AwayTeam:          fixture.AwayTeam,
 			AwayDisplay:       copa.TeamDisplay(fixture.AwayTeam),
 			AwayFlag:          awayTeam.Flag,
+			Locked:            !isPredictionOpen(now, fixture.MatchDate),
 			HasResult:         fixture.HomeScore.Valid && fixture.AwayScore.Valid,
 			PredictionExpired: predExpired,
 		}
@@ -1218,6 +1220,11 @@ func normalizeGroupName(value string) string {
 		}
 	}
 	return ""
+}
+
+func isPredictionOpen(now time.Time, matchDate time.Time) bool {
+	deadline := time.Date(matchDate.Year(), matchDate.Month(), matchDate.Day(), 0, 0, 0, 0, now.Location())
+	return now.Before(deadline)
 }
 
 func selectedGroupTeams(groups []GroupView, selectedGroup string) []TeamView {

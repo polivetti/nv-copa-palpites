@@ -204,9 +204,9 @@
                     <span class="round-team-name">{{ .HomeDisplay }}</span>
                     <span class="flag">{{ .HomeFlag }}</span>
                     <div class="match-inputs">
-                      <input type="number" min="0" name="fixture_{{ .ID }}_home" value="{{ .PredHomeScore }}" {{ if or .HasResult .PredictionExpired }}disabled{{ end }}>
+                      <input type="number" min="0" name="fixture_{{ .ID }}_home" value="{{ .PredHomeScore }}" {{ if or .Locked .PredictionExpired }}disabled{{ end }}>
                       <span>x</span>
-                      <input type="number" min="0" name="fixture_{{ .ID }}_away" value="{{ .PredAwayScore }}" {{ if or .HasResult .PredictionExpired }}disabled{{ end }}>
+                      <input type="number" min="0" name="fixture_{{ .ID }}_away" value="{{ .PredAwayScore }}" {{ if or .Locked .PredictionExpired }}disabled{{ end }}>
                     </div>
                     <span class="flag">{{ .AwayFlag }}</span>
                     <span class="round-team-name">{{ .AwayDisplay }}</span>
@@ -214,9 +214,11 @@
                   {{ if .HasResult }}
                     <small>Resultado oficial ja informado.</small>
                   {{ else if .PredictionExpired }}
-                    <small>O palpite nao pode mais ser alterado. <span class="tooltip-trigger" title="O palpite so pode ser alterado ate 12 horas apos ser criado.">?</span></small>
+                    <small>O palpite nao pode mais ser alterado. <span class="tooltip-trigger" title="O palpite so pode ser alterado ate 12 horas apos ser criado e ate o dia anterior ao jogo.">?</span></small>
+                  {{ else if .Locked }}
+                    <small>Prazo encerrado. O palpite fecha na vespera do jogo.</small>
                   {{ else }}
-                    <small>Palpite aberto. <span class="tooltip-trigger" title="Depois de criado, o palpite so pode ser alterado em ate 12 horas.">?</span></small>
+                    <small>Palpite aberto ate a vespera do jogo. <span class="tooltip-trigger" title="O palpite so pode ser alterado ate 12 horas apos ser criado e ate o dia anterior ao jogo.">?</span></small>
                   {{ end }}
                 </article>
               {{ end }}

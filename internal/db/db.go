@@ -660,6 +660,9 @@ func (s *Store) SaveFixturePredictions(userID int64, predictions map[int64][2]in
 		if err != nil {
 			return err
 		}
+		if !predictionOpen(now, fixture.MatchDate) {
+			return errors.New("o prazo para palpitar esse jogo ja encerrou")
+		}
 		if fixture.HomeScore.Valid && fixture.AwayScore.Valid {
 			return errors.New("o resultado desse jogo ja foi registrado, palpite nao pode ser alterado")
 		}
@@ -737,6 +740,12 @@ FROM fixtures
 WHERE id = ?
 `, fixtureID)
 	return scanFixture(row)
+}
+
+func predictionOpen(now time.Time, matchDate time.Time) bool {
+	location := now.Location()
+	deadline := time.Date(matchDate.Year(), matchDate.Month(), matchDate.Day(), 0, 0, 0, 0, location)
+	return now.Before(deadline)
 }
 
 func (s *Store) ensureUserColumns() error {
