@@ -132,6 +132,9 @@
                   </div>
                   {{ if .HasResult }}
                     <small>Resultado oficial registrado.</small>
+                    {{ if $.User.IsAdmin }}
+                      <button type="submit" name="fixture_id" value="{{ .ID }}" formaction="/groups/results/reset" formnovalidate onclick="return confirm('Resetar o resultado oficial desta partida e remover os pontos correspondentes?')">Resetar resultado</button>
+                    {{ end }}
                   {{ else }}
                     <small>{{ if $.User.IsAdmin }}Resultado oficial ainda nao informado.{{ else }}Aguardando resultado oficial do administrador.{{ end }}</small>
                   {{ end }}

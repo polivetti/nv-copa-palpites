@@ -25,7 +25,7 @@ Regras que continuam valendo:
 
 - nao permite alterar palpite se o resultado oficial do jogo ja foi informado;
 - se o usuario ja tinha criado um palpite, ele continua podendo editar somente em ate 12 horas apos a criacao.
-
+nova funcionalida
 ## Validacao feita
 
 O build Docker passou:

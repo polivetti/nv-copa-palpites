@@ -424,6 +424,25 @@ func (s *Store) SetFixtureResult(fixtureID, homeScore, awayScore int64) error {
 	return err
 }
 
+func (s *Store) ResetFixtureResult(fixtureID int64, groupName string, roundNumber int) error {
+	result, err := s.db.Exec(`
+UPDATE fixtures
+SET home_score = NULL, away_score = NULL
+WHERE id = ? AND group_name = ? AND round_number = ?
+`, fixtureID, groupName, roundNumber)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return errors.New("partida nao encontrada")
+	}
+	return nil
+}
+
 func (s *Store) Seed() error {
 	if err := s.seedFixtures(); err != nil {
 		return err

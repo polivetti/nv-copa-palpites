@@ -165,6 +165,7 @@ func New(store *db.Store) http.Handler {
 	mux.HandleFunc("/group-picks/save", app.saveGroupPicks)
 	mux.HandleFunc("/groups", app.groupsPage)
 	mux.HandleFunc("/groups/results", app.saveFixtureResults)
+	mux.HandleFunc("/groups/results/reset", app.resetFixtureResults)
 	mux.HandleFunc("/groups/qualifiers", app.saveGroupQualifiers)
 	mux.HandleFunc("/ranking", app.rankingPage)
 	mux.HandleFunc("/round-predictions", app.saveRoundPredictions)
@@ -734,6 +735,42 @@ func (a *App) saveFixtureResults(w http.ResponseWriter, r *http.Request) {
 	}
 	data := a.groupsPageDataFor(user, selectedGroup, selectedRound)
 	data.Notice = "Resultados oficiais atualizados."
+	a.render(w, "groups.html", data)
+}
+
+func (a *App) resetFixtureResults(w http.ResponseWriter, r *http.Request) {
+	user, ok := a.requireAuth(w, r)
+	if !ok {
+		return
+	}
+	if !user.IsAdmin {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	selectedGroup := normalizeGroupName(r.FormValue("selected_group"))
+	selectedRound, err := strconv.Atoi(r.FormValue("selected_round"))
+	if selectedGroup == "" || selectedRound < 1 || selectedRound > 3 || err != nil {
+		http.Error(w, "grupo ou rodada invalida", http.StatusBadRequest)
+		return
+	}
+	fixtureID, err := strconv.ParseInt(r.FormValue("fixture_id"), 10, 64)
+	if err != nil || fixtureID < 1 {
+		http.Error(w, "partida invalida", http.StatusBadRequest)
+		return
+	}
+	if err := a.store.ResetFixtureResult(fixtureID, selectedGroup, selectedRound); err != nil {
+		log.Printf("reset fixture results: %v", err)
+		http.Error(w, "erro ao resetar resultados oficiais", http.StatusInternalServerError)
+		return
+	}
+
+	data := a.groupsPageDataFor(user, selectedGroup, selectedRound)
+	data.Notice = "Resultado oficial resetado. Os pontos correspondentes foram removidos do ranking."
 	a.render(w, "groups.html", data)
 }
 
