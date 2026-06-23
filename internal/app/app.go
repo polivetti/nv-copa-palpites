@@ -22,7 +22,7 @@ type App struct {
 	templates *template.Template
 }
 
-const activePredictionRound = 2
+const activePredictionRound = 3
 
 type PageData struct {
 	User                 db.User
