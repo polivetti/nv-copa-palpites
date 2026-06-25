@@ -682,19 +682,6 @@ func (s *Store) SaveFixturePredictions(userID int64, predictions map[int64][2]in
 		if !predictionOpen(now, fixture.MatchDate) {
 			return errors.New("o prazo para palpitar esse jogo ja encerrou")
 		}
-		if fixture.HomeScore.Valid && fixture.AwayScore.Valid {
-			return errors.New("o resultado desse jogo ja foi registrado, palpite nao pode ser alterado")
-		}
-		var createdAt sql.NullString
-		if err := tx.QueryRow("SELECT created_at FROM fixture_predictions WHERE user_id = ? AND fixture_id = ?", userID, fixtureID).Scan(&createdAt); err != nil && err != sql.ErrNoRows {
-			return err
-		}
-		if createdAt.Valid {
-			created, err := time.Parse("2006-01-02 15:04:05", createdAt.String)
-			if err == nil && now.Sub(created) > 12*time.Hour {
-				return errors.New("o palpite so pode ser alterado em ate 12 horas apos ser criado")
-			}
-		}
 		if _, err := tx.Exec(`
 INSERT INTO fixture_predictions (user_id, fixture_id, home_score, away_score)
 VALUES (?, ?, ?, ?)
@@ -970,26 +957,24 @@ func (s *Store) FullRanking() ([]UserRanking, error) {
 						GroupName: groupName, Points: 5, HitType: "exact_group",
 					})
 					ranking.TotalPoints += 5
-				} else {
-					actualSet := map[string]bool{actual1: true, actual2: true}
-					if actual3 != "" {
-						actualSet[actual3] = true
-					}
-					predSet := map[string]bool{pred1: true, pred2: true}
-					if pred3 != "" {
-						predSet[pred3] = true
-					}
-					matchCount := 0
-					for team := range predSet {
-						if actualSet[team] {
-							matchCount++
-						}
-					}
-					if matchCount > 0 {
+					continue
+				}
+
+				actualSet := map[string]bool{actual1: true, actual2: true}
+				if actual3 != "" {
+					actualSet[actual3] = true
+				}
+				predSet := map[string]bool{pred1: true, pred2: true}
+				if pred3 != "" {
+					predSet[pred3] = true
+				}
+
+				for team := range predSet {
+					if actualSet[team] {
 						ranking.GroupHits = append(ranking.GroupHits, UserGroupHit{
-							GroupName: groupName, Points: matchCount, HitType: "qualified_teams",
+							GroupName: groupName, Points: 1, HitType: "qualified_teams",
 						})
-						ranking.TotalPoints += matchCount
+						ranking.TotalPoints++
 					}
 				}
 			}

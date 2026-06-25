@@ -75,9 +75,9 @@
             <article class="rules-card">
               <h3>Classificacao do grupo</h3>
               <ul class="rules-list">
-                <li><strong>5 pontos</strong> ao acertar os classificados e a ordem exata.</li>
-                <li><strong>3 pontos</strong> ao acertar quem passa, mas com ordem diferente.</li>
-                <li><strong>2 pontos</strong> por acertar um terceiro colocado que avance.</li>
+                <li><strong>5 pontos</strong> por cravar todos os classificados do grupo na ordem certa.</li>
+                <li><strong>1 ponto</strong> por seleção classificada quando nao cravar o grupo.</li>
+                <li><strong>0 ponto</strong> por seleção que nao passar.</li>
               </ul>
             </article>
           </div>
@@ -223,21 +223,19 @@
                   <span class="round-team-name">{{ .HomeDisplay }}</span>
                   <span class="flag">{{ .HomeFlag }}</span>
                   <div class="match-inputs">
-                    <input type="number" min="0" name="fixture_{{ .ID }}_home" value="{{ .PredHomeScore }}" {{ if or .Locked .PredictionExpired }}disabled{{ end }}>
+                    <input type="number" min="0" name="fixture_{{ .ID }}_home" value="{{ .PredHomeScore }}" {{ if .Locked }}disabled{{ end }}>
                     <span>x</span>
-                    <input type="number" min="0" name="fixture_{{ .ID }}_away" value="{{ .PredAwayScore }}" {{ if or .Locked .PredictionExpired }}disabled{{ end }}>
+                    <input type="number" min="0" name="fixture_{{ .ID }}_away" value="{{ .PredAwayScore }}" {{ if .Locked }}disabled{{ end }}>
                   </div>
                   <span class="flag">{{ .AwayFlag }}</span>
                   <span class="round-team-name">{{ .AwayDisplay }}</span>
                 </div>
                 {{ if .HasResult }}
                   <small>Resultado oficial ja informado.</small>
-                {{ else if .PredictionExpired }}
-                  <small>O palpite nao pode mais ser alterado. <span class="tooltip-trigger" title="O palpite so pode ser alterado ate 12 horas apos ser criado e ate o dia anterior ao jogo.">?</span></small>
                 {{ else if .Locked }}
                   <small>Prazo encerrado. O palpite fecha na vespera do jogo.</small>
                 {{ else }}
-                  <small>Palpite aberto ate a vespera do jogo. <span class="tooltip-trigger" title="O palpite so pode ser alterado ate 12 horas apos ser criado e ate o dia anterior ao jogo.">?</span></small>
+                  <small>Palpite aberto ate a vespera do jogo. <span class="tooltip-trigger" title="O palpite pode ser alterado ate o dia anterior ao jogo.">?</span></small>
                 {{ end }}
               </article>
             {{ end }}

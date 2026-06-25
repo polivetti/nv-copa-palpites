@@ -23,8 +23,8 @@ Comportamento temporario:
 
 Regras que continuam valendo:
 
-- nao permite alterar palpite se o resultado oficial do jogo ja foi informado;
-- se o usuario ja tinha criado um palpite, ele continua podendo editar somente em ate 12 horas apos a criacao.
+- o palpite pode ser alterado sempre ate a vespera do jogo, mesmo se o resultado oficial ja tiver sido informado;
+- no dia do jogo o campo fica bloqueado.
 nova funcionalida
 ## Validacao feita
 
