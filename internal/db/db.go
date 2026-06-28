@@ -840,8 +840,7 @@ WHERE id = ?
 }
 
 func predictionOpen(now time.Time, matchDate time.Time) bool {
-	deadline := matchDate.Add(-1 * time.Hour)
-	return now.Before(deadline)
+	return now.Before(matchDate)
 }
 
 func (s *Store) ensureUserColumns() error {
