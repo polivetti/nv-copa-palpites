@@ -1441,7 +1441,14 @@ func (a *App) adminPredictions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := AdminPredictionsData{User: user, Users: users}
+	var filteredUsers []db.User
+	for _, u := range users {
+		if u.ID != user.ID {
+			filteredUsers = append(filteredUsers, u)
+		}
+	}
+
+	data := AdminPredictionsData{User: user, Users: filteredUsers}
 
 	targetUserIDStr := r.FormValue("user_id")
 	if targetUserIDStr == "" && r.URL.Query().Get("user_id") != "" {
