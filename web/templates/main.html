@@ -5,34 +5,15 @@
       <p class="eyebrow dark">Menu</p>
       <nav class="side-nav">
         <a href="/" class="active">Resumo</a>
-        <a href="/groups">Palpites</a>
+        <a href="/groups">1a Fase</a>
         <a href="/knockout">Segunda Fase</a>
         <a href="/ranking">Ranking</a>
       </nav>
     </div>
 
-    <div class="sidebar-block">
-      <p class="eyebrow dark">Grupos</p>
-      <nav class="group-nav">
-        {{ range .Groups }}
-          <a href="/?group={{ urlquery .Name }}" class="{{ if eq $.SelectedGroup .Name }}active{{ end }}">{{ .Name }}</a>
-        {{ end }}
-      </nav>
-    </div>
-
-    <div class="sidebar-block sidebar-summary">
-      <p class="eyebrow dark">Rodada {{ .CurrentRound }}</p>
-      <strong>{{ .RoundPredicted }}/{{ .RoundTotal }} jogos palpitados</strong>
-      <span>{{ .SelectedGroup }}</span>
-    </div>
   </aside>
 
   <div class="content-shell">
-    <nav class="mobile-group-switcher">
-      <a class="group-arrow" id="group-prev">&#8249;</a>
-      <span class="group-current">{{ .SelectedGroup }}</span>
-      <a class="group-arrow" id="group-next">&#8250;</a>
-    </nav>
     {{ if .Error }}<div class="alert error">{{ .Error }}</div>{{ end }}
     {{ if .Notice }}<div class="alert notice">{{ .Notice }}</div>{{ end }}
 
@@ -166,104 +147,6 @@
       </div>
     </section>
 
-    <section id="round-panel" class="round-layout">
-      <section class="panel standings-panel">
-        <header class="standings-head">
-          <h2>{{ .SelectedGroup }}</h2>
-          <span>{{ .RoundLabel }}</span>
-        </header>
-        <table class="standings-table">
-          <thead>
-            <tr>
-              <th>Classificacao</th>
-              <th>P</th>
-              <th>J</th>
-              <th>V</th>
-              <th>E</th>
-              <th>D</th>
-              <th>GP</th>
-              <th>GC</th>
-              <th>SG</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{ range .GroupStandings }}
-              <tr>
-                <td class="club-cell"><span class="place">{{ .Position }}</span><span class="flag">{{ .TeamFlag }}</span>{{ .TeamDisplay }}</td>
-                <td>{{ .Points }}</td>
-                <td>{{ .Played }}</td>
-                <td>{{ .Wins }}</td>
-                <td>{{ .Draws }}</td>
-                <td>{{ .Losses }}</td>
-                <td>{{ .GoalsFor }}</td>
-                <td>{{ .GoalsAgainst }}</td>
-                <td>{{ .GoalDiff }}</td>
-              </tr>
-            {{ end }}
-          </tbody>
-        </table>
-      </section>
-
-      <section class="panel round-panel">
-        <header class="round-panel-head">
-          <h2>{{ .RoundLabel }}</h2>
-          <span>{{ .SelectedGroup }}</span>
-        </header>
-
-        <form class="round-form" hx-post="/round-predictions" hx-target="#app" hx-swap="outerHTML">
-          <input type="hidden" name="selected_group" value="{{ .SelectedGroup }}">
-          <input type="hidden" name="selected_round" value="{{ .CurrentRound }}">
-          <div class="round-match-list">
-            {{ range .CurrentRoundFixtures }}
-              <article class="round-match-card">
-                <div class="match-date">{{ .MatchDate }}</div>
-                <div class="match-group">{{ .GroupName }}</div>
-                <div class="round-club-row">
-                  <span class="round-team-name">{{ .HomeDisplay }}</span>
-                  <span class="flag">{{ .HomeFlag }}</span>
-                  <div class="match-inputs">
-                    <input type="number" min="0" name="fixture_{{ .ID }}_home" value="{{ .PredHomeScore }}" {{ if .Locked }}disabled{{ end }}>
-                    <span>x</span>
-                    <input type="number" min="0" name="fixture_{{ .ID }}_away" value="{{ .PredAwayScore }}" {{ if .Locked }}disabled{{ end }}>
-                  </div>
-                  <span class="flag">{{ .AwayFlag }}</span>
-                  <span class="round-team-name">{{ .AwayDisplay }}</span>
-                </div>
-                {{ if .HasResult }}
-                  <small>Resultado oficial ja informado.</small>
-                {{ else if .Locked }}
-                  <small>Prazo encerrado. O palpite fecha 1h antes do jogo.</small>
-                {{ else }}
-                  <small>Palpite aberto ate 1h antes do jogo.</small>
-                {{ end }}
-              </article>
-            {{ end }}
-          </div>
-          <div class="sticky-actions">
-            <span>{{ .RoundPredicted }}/{{ .RoundTotal }} palpites salvos na rodada</span>
-            <button type="submit">Salvar palpites da rodada</button>
-          </div>
-
-        </form>
-      </section>
-    </section>
-
   </div>
-  <script>
-  (function() {
-    var groups = [{{ range $i, $g := .Groups }}{{ if $i }},{{ end }}"{{ $g.Name }}"{{ end }}];
-    var current = "{{ .SelectedGroup }}";
-    var idx = groups.indexOf(current);
-    var prev = document.getElementById("group-prev");
-    var next = document.getElementById("group-next");
-    function go(i) {
-      window.location.href = "/?group=" + encodeURIComponent(groups[i]);
-    }
-    prev.onclick = function(e) { e.preventDefault(); if (idx > 0) go(idx - 1); };
-    next.onclick = function(e) { e.preventDefault(); if (idx < groups.length - 1) go(idx + 1); };
-    if (idx <= 0) prev.classList.add("disabled");
-    if (idx >= groups.length - 1) next.classList.add("disabled");
-  })();
-  </script>
 </main>
 {{ end }}
