@@ -798,10 +798,11 @@ WHERE fp.user_id = ? AND f.stage = 'groups' AND f.round_number = ?
 }
 
 func parseMatchDate(s string) (time.Time, error) {
-	if t, err := time.Parse("2006-01-02T15:04", s); err == nil {
+	loc, _ := time.LoadLocation("America/Sao_Paulo")
+	if t, err := time.ParseInLocation("2006-01-02T15:04", s, loc); err == nil {
 		return t, nil
 	}
-	return time.Parse("2006-01-02", s)
+	return time.ParseInLocation("2006-01-02", s, loc)
 }
 
 func scanFixture(scanner interface {

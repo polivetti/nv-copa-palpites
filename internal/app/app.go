@@ -1416,8 +1416,7 @@ func normalizeGroupName(value string) string {
 }
 
 func isPredictionOpen(now time.Time, matchDate time.Time) bool {
-	deadline := matchDate.Add(-1 * time.Hour)
-	return now.Before(deadline)
+	return now.Before(matchDate)
 }
 
 func selectedGroupTeams(groups []GroupView, selectedGroup string) []TeamView {
