@@ -194,6 +194,7 @@ func New(store *db.Store) http.Handler {
 	mux.HandleFunc("/knockout/predictions", app.saveKnockoutPredictions)
 	mux.HandleFunc("/knockout/results", app.saveKnockoutResults)
 	mux.HandleFunc("/round-predictions", app.saveRoundPredictions)
+	mux.HandleFunc("/admin/predictions", app.adminPredictions)
 	return mux
 }
 
@@ -1413,6 +1414,99 @@ func normalizeGroupName(value string) string {
 		}
 	}
 	return ""
+}
+
+type AdminPredictionsData struct {
+	User         db.User
+	Users        []db.User
+	SelectedUser *db.User
+	Fixtures     []FixtureView
+	Error        string
+	Notice       string
+}
+
+func (a *App) adminPredictions(w http.ResponseWriter, r *http.Request) {
+	user, ok := a.requireAuth(w, r)
+	if !ok {
+		return
+	}
+	if !user.IsAdmin {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	users, err := a.store.AllUsers()
+	if err != nil {
+		http.Error(w, "erro ao carregar usuarios", http.StatusInternalServerError)
+		return
+	}
+
+	data := AdminPredictionsData{User: user, Users: users}
+
+	targetUserIDStr := r.FormValue("user_id")
+	if targetUserIDStr == "" && r.URL.Query().Get("user_id") != "" {
+		targetUserIDStr = r.URL.Query().Get("user_id")
+	}
+
+	if targetUserIDStr != "" {
+		targetUserID, _ := strconv.ParseInt(targetUserIDStr, 10, 64)
+		for _, u := range users {
+			if u.ID == targetUserID {
+				selected := u
+				data.SelectedUser = &selected
+				break
+			}
+		}
+
+		if data.SelectedUser != nil && r.Method == http.MethodPost {
+			predictions := make(map[int64][2]int64)
+			for key, values := range r.Form {
+				if !strings.HasPrefix(key, "fixture_") || !strings.HasSuffix(key, "_home") {
+					continue
+				}
+				parts := strings.Split(key, "_")
+				if len(parts) != 3 {
+					continue
+				}
+				fixtureID, err := strconv.ParseInt(parts[1], 10, 64)
+				if err != nil {
+					continue
+				}
+				homeVal := strings.TrimSpace(values[0])
+				awayVal := strings.TrimSpace(r.FormValue("fixture_" + parts[1] + "_away"))
+				if homeVal == "" || awayVal == "" {
+					continue
+				}
+				home, err := strconv.ParseInt(homeVal, 10, 64)
+				if err != nil {
+					continue
+				}
+				away, err := strconv.ParseInt(awayVal, 10, 64)
+				if err != nil {
+					continue
+				}
+				predictions[fixtureID] = [2]int64{home, away}
+			}
+			if len(predictions) > 0 {
+				if err := a.store.AdminSaveFixturePredictions(targetUserID, predictions); err != nil {
+					data.Error = err.Error()
+				} else {
+					data.Notice = "Palpites salvos para " + data.SelectedUser.Name + "."
+				}
+			}
+		}
+
+		if data.SelectedUser != nil {
+			missing, err := a.store.MissingPredictions(data.SelectedUser.ID)
+			if err != nil {
+				http.Error(w, "erro ao carregar jogos pendentes", http.StatusInternalServerError)
+				return
+			}
+			data.Fixtures = fixtureViews(missing)
+		}
+	}
+
+	a.render(w, "admin_predictions.html", data)
 }
 
 func isPredictionOpen(now time.Time, matchDate time.Time) bool {

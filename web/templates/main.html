@@ -8,6 +8,7 @@
         <a href="/groups">1a Fase</a>
         <a href="/knockout">Segunda Fase</a>
         <a href="/ranking">Ranking</a>
+        {{ if .User.IsAdmin }}<a href="/admin/predictions">Admin Palpites</a>{{ end }}
       </nav>
     </div>
 
@@ -94,7 +95,7 @@
               <ul class="rules-list">
                 <li>Os palpites do mata-mata sao feitos rodada por rodada.</li>
                 <li>Quanto mais avancada a fase, maior a pontuacao.</li>
-                <li>O palpite pode ser feito ate 1h antes do jogo comecar.</li>
+                <li>O palpite pode ser feito ate a hora do jogo comecar.</li>
               </ul>
             </article>
           </div>

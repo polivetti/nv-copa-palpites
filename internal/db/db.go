@@ -780,6 +780,65 @@ ON CONFLICT(user_id, fixture_id) DO UPDATE SET
 	return tx.Commit()
 }
 
+func (s *Store) AdminSaveFixturePredictions(userID int64, predictions map[int64][2]int64) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for fixtureID, score := range predictions {
+		if _, err := tx.Exec(`
+INSERT INTO fixture_predictions (user_id, fixture_id, home_score, away_score)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(user_id, fixture_id) DO UPDATE SET
+	home_score = excluded.home_score,
+	away_score = excluded.away_score,
+	updated_at = CURRENT_TIMESTAMP
+`, userID, fixtureID, score[0], score[1]); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func (s *Store) MissingPredictions(userID int64) ([]FixturePrediction, error) {
+	loc, _ := time.LoadLocation("America/Sao_Paulo")
+	now := time.Now().In(loc).Format("2006-01-02T15:04")
+	rows, err := s.db.Query(`
+SELECT
+	f.id, f.round_number, f.group_name, f.match_date, f.home_team, f.away_team, f.home_score, f.away_score
+FROM fixtures f
+LEFT JOIN fixture_predictions p ON p.fixture_id = f.id AND p.user_id = ?
+WHERE p.fixture_id IS NULL AND f.match_date <= ?
+ORDER BY f.match_date, f.id
+`, userID, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var fixtures []FixturePrediction
+	for rows.Next() {
+		var fp FixturePrediction
+		var matchDate string
+		if err := rows.Scan(
+			&fp.ID, &fp.Round, &fp.GroupName, &matchDate,
+			&fp.HomeTeam, &fp.AwayTeam, &fp.HomeScore, &fp.AwayScore,
+		); err != nil {
+			return nil, err
+		}
+		parsed, err := parseMatchDate(matchDate)
+		if err != nil {
+			return nil, err
+		}
+		fp.MatchDate = parsed
+		fixtures = append(fixtures, fp)
+	}
+	return fixtures, rows.Err()
+}
+
 func (s *Store) RoundPredictionProgress(userID int64, round int) (int, int, error) {
 	var total int
 	if err := s.db.QueryRow("SELECT COUNT(*) FROM fixtures WHERE stage = 'groups' AND round_number = ?", round).Scan(&total); err != nil {

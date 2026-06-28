@@ -27,6 +27,7 @@
           <a href="/groups" class="active">1a Fase</a>
           <a href="/knockout">Segunda Fase</a>
           <a href="/ranking">Ranking</a>
+          {{ if .User.IsAdmin }}<a href="/admin/predictions">Admin Palpites</a>{{ end }}
         </nav>
       </div>
 
@@ -218,9 +219,9 @@
                   {{ if .HasResult }}
                     <small>Resultado oficial ja informado.</small>
                   {{ else if .Locked }}
-                    <small>Prazo encerrado. O palpite fecha 1h antes do jogo.</small>
+                    <small>Prazo encerrado. O palpite fecha na hora do jogo.</small>
                   {{ else }}
-                    <small>Palpite aberto ate 1h antes do jogo.</small>
+                    <small>Palpite aberto ate a hora do jogo.</small>
                   {{ end }}
                 </article>
               {{ end }}

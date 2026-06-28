@@ -27,6 +27,7 @@
           <a href="/groups">1a Fase</a>
           <a href="/knockout">Segunda Fase</a>
           <a href="/ranking" class="active">Ranking</a>
+          {{ if .User.IsAdmin }}<a href="/admin/predictions">Admin Palpites</a>{{ end }}
         </nav>
       </div>
     </aside>
