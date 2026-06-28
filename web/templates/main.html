@@ -6,6 +6,7 @@
       <nav class="side-nav">
         <a href="/" class="active">Resumo</a>
         <a href="/groups">Palpites</a>
+        <a href="/knockout">Segunda Fase</a>
         <a href="/ranking">Ranking</a>
       </nav>
     </div>
@@ -91,29 +92,28 @@
                   <thead>
                     <tr>
                       <th>Rodada</th>
-                      <th>Resultado</th>
-                      <th>Vencedor</th>
-                      <th>Total</th>
+                      <th>Placar exato</th>
+                      <th>Acertar vencedor</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr><td>1a fase do mata (16 jogos)</td><td>4</td><td>2</td><td>6</td></tr>
-                    <tr><td>2a fase (8 jogos)</td><td>5</td><td>3</td><td>8</td></tr>
-                    <tr><td>3a fase (4 jogos)</td><td>6</td><td>4</td><td>10</td></tr>
-                    <tr><td>4a fase (2 jogos)</td><td>7</td><td>5</td><td>12</td></tr>
-                    <tr><td>Disputa de terceiro</td><td>8</td><td>6</td><td>14</td></tr>
-                    <tr><td>Final</td><td>9</td><td>7</td><td>16</td></tr>
+                    <tr><td>1a fase do mata (16 jogos)</td><td>4</td><td>2</td></tr>
+                    <tr><td>2a fase (8 jogos)</td><td>5</td><td>3</td></tr>
+                    <tr><td>3a fase (4 jogos)</td><td>6</td><td>4</td></tr>
+                    <tr><td>4a fase (2 jogos)</td><td>7</td><td>5</td></tr>
+                    <tr><td>Disputa de terceiro</td><td>8</td><td>6</td></tr>
+                    <tr><td>Final</td><td>9</td><td>7</td></tr>
                   </tbody>
                 </table>
               </div>
             </article>
 
             <article class="rules-card">
-              <h3>Como vao funcionar os palpites</h3>
+              <h3>Como funcionam os palpites</h3>
               <ul class="rules-list">
-                <li>Os palpites do mata-mata serao feitos rodada por rodada.</li>
+                <li>Os palpites do mata-mata sao feitos rodada por rodada.</li>
                 <li>Quanto mais avancada a fase, maior a pontuacao.</li>
-                <li>Essa parte ainda nao esta liberada no app e sera a proxima etapa.</li>
+                <li>O palpite pode ser feito ate 1h antes do jogo comecar.</li>
               </ul>
             </article>
           </div>
@@ -232,9 +232,9 @@
                 {{ if .HasResult }}
                   <small>Resultado oficial ja informado.</small>
                 {{ else if .Locked }}
-                  <small>Prazo encerrado. O palpite fecha na vespera do jogo.</small>
+                  <small>Prazo encerrado. O palpite fecha 1h antes do jogo.</small>
                 {{ else }}
-                  <small>Palpite aberto ate a vespera do jogo. <span class="tooltip-trigger" title="O palpite pode ser alterado ate o dia anterior ao jogo.">?</span></small>
+                  <small>Palpite aberto ate 1h antes do jogo.</small>
                 {{ end }}
               </article>
             {{ end }}

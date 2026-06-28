@@ -8,6 +8,32 @@ type FixtureSeed struct {
 	AwayTeam  string
 }
 
+type KnockoutFixtureSeed struct {
+	Round    int
+	DateTime string
+	HomeTeam string
+	AwayTeam string
+}
+
+var KnockoutFixtures = []KnockoutFixtureSeed{
+	{Round: 4, DateTime: "2026-06-28T16:00", HomeTeam: "Africa do Sul", AwayTeam: "Canada"},
+	{Round: 4, DateTime: "2026-06-29T14:00", HomeTeam: "Brasil", AwayTeam: "Japao"},
+	{Round: 4, DateTime: "2026-06-29T17:30", HomeTeam: "Alemanha", AwayTeam: "Paraguai"},
+	{Round: 4, DateTime: "2026-06-29T22:00", HomeTeam: "Holanda", AwayTeam: "Marrocos"},
+	{Round: 4, DateTime: "2026-06-30T14:00", HomeTeam: "Costa do Marfim", AwayTeam: "Noruega"},
+	{Round: 4, DateTime: "2026-06-30T18:00", HomeTeam: "Franca", AwayTeam: "Suecia"},
+	{Round: 4, DateTime: "2026-06-30T22:00", HomeTeam: "Mexico", AwayTeam: "Equador"},
+	{Round: 4, DateTime: "2026-07-01T13:00", HomeTeam: "Inglaterra", AwayTeam: "RD Congo"},
+	{Round: 4, DateTime: "2026-07-01T17:00", HomeTeam: "Belgica", AwayTeam: "Senegal"},
+	{Round: 4, DateTime: "2026-07-01T21:00", HomeTeam: "Estados Unidos", AwayTeam: "Bosnia"},
+	{Round: 4, DateTime: "2026-07-02T16:00", HomeTeam: "Espanha", AwayTeam: "Austria"},
+	{Round: 4, DateTime: "2026-07-02T20:00", HomeTeam: "Portugal", AwayTeam: "Croacia"},
+	{Round: 4, DateTime: "2026-07-03T00:00", HomeTeam: "Suica", AwayTeam: "Argelia"},
+	{Round: 4, DateTime: "2026-07-03T15:00", HomeTeam: "Australia", AwayTeam: "Egito"},
+	{Round: 4, DateTime: "2026-07-03T19:00", HomeTeam: "Argentina", AwayTeam: "Cabo Verde"},
+	{Round: 4, DateTime: "2026-07-03T22:30", HomeTeam: "Colombia", AwayTeam: "Gana"},
+}
+
 var GroupStageFixtures = []FixtureSeed{
 	{Round: 1, Date: "2026-06-11", GroupName: "Grupo A", HomeTeam: "Mexico", AwayTeam: "Africa do Sul"},
 	{Round: 1, Date: "2026-06-11", GroupName: "Grupo A", HomeTeam: "Coreia do Sul", AwayTeam: "Republica Tcheca"},

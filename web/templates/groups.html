@@ -25,6 +25,7 @@
         <nav class="side-nav">
           <a href="/">Resumo</a>
           <a href="/groups" class="active">Palpites</a>
+          <a href="/knockout">Segunda Fase</a>
           <a href="/ranking">Ranking</a>
         </nav>
       </div>
@@ -217,9 +218,9 @@
                   {{ if .HasResult }}
                     <small>Resultado oficial ja informado.</small>
                   {{ else if .Locked }}
-                    <small>Prazo encerrado. O palpite fecha na vespera do jogo.</small>
+                    <small>Prazo encerrado. O palpite fecha 1h antes do jogo.</small>
                   {{ else }}
-                    <small>Palpite aberto ate a vespera do jogo. <span class="tooltip-trigger" title="O palpite pode ser alterado ate o dia anterior ao jogo.">?</span></small>
+                    <small>Palpite aberto ate 1h antes do jogo.</small>
                   {{ end }}
                 </article>
               {{ end }}

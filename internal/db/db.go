@@ -447,6 +447,9 @@ func (s *Store) Seed() error {
 	if err := s.seedFixtures(); err != nil {
 		return err
 	}
+	if err := s.seedKnockoutFixtures(); err != nil {
+		return err
+	}
 
 	var count int
 	if err := s.db.QueryRow("SELECT COUNT(*) FROM matches").Scan(&count); err != nil {
@@ -500,6 +503,86 @@ VALUES ('groups', ?, ?, ?, ?, ?)
 		}
 	}
 	return nil
+}
+
+func (s *Store) seedKnockoutFixtures() error {
+	var count int
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM fixtures WHERE stage = 'knockout'").Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+
+	for _, fixture := range copa.KnockoutFixtures {
+		if _, err := s.db.Exec(`
+INSERT INTO fixtures (stage, round_number, group_name, match_date, home_team, away_team)
+VALUES ('knockout', ?, '16 avos', ?, ?, ?)
+`, fixture.Round, fixture.DateTime, fixture.HomeTeam, fixture.AwayTeam); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Store) KnockoutFixturePredictions(userID int64, round int) ([]FixturePrediction, error) {
+	rows, err := s.db.Query(`
+SELECT
+	f.id, f.round_number, f.group_name, f.match_date, f.home_team, f.away_team, f.home_score, f.away_score,
+	p.home_score, p.away_score, p.created_at
+FROM fixtures f
+LEFT JOIN fixture_predictions p ON p.fixture_id = f.id AND p.user_id = ?
+WHERE f.stage = 'knockout' AND f.round_number = ?
+ORDER BY f.match_date, f.id
+`, userID, round)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var fixtures []FixturePrediction
+	for rows.Next() {
+		var fixture FixturePrediction
+		var matchDate string
+		if err := rows.Scan(
+			&fixture.ID,
+			&fixture.Round,
+			&fixture.GroupName,
+			&matchDate,
+			&fixture.HomeTeam,
+			&fixture.AwayTeam,
+			&fixture.HomeScore,
+			&fixture.AwayScore,
+			&fixture.PredHomeScore,
+			&fixture.PredAwayScore,
+			&fixture.PredCreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		parsed, err := parseMatchDate(matchDate)
+		if err != nil {
+			return nil, err
+		}
+		fixture.MatchDate = parsed
+		fixtures = append(fixtures, fixture)
+	}
+	return fixtures, rows.Err()
+}
+
+func (s *Store) KnockoutPredictionProgress(userID int64, round int) (int, int, error) {
+	var total int
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM fixtures WHERE stage = 'knockout' AND round_number = ?", round).Scan(&total); err != nil {
+		return 0, 0, err
+	}
+	var completed int
+	if err := s.db.QueryRow(`
+SELECT COUNT(*) FROM fixture_predictions p
+JOIN fixtures f ON f.id = p.fixture_id
+WHERE p.user_id = ? AND f.stage = 'knockout' AND f.round_number = ?
+`, userID, round).Scan(&completed); err != nil {
+		return 0, 0, err
+	}
+	return completed, total, nil
 }
 
 func (s *Store) Matches() ([]Match, error) {
@@ -657,7 +740,7 @@ ORDER BY f.match_date, f.id
 		); err != nil {
 			return nil, err
 		}
-		parsed, err := time.Parse("2006-01-02", matchDate)
+		parsed, err := parseMatchDate(matchDate)
 		if err != nil {
 			return nil, err
 		}
@@ -714,6 +797,13 @@ WHERE fp.user_id = ? AND f.stage = 'groups' AND f.round_number = ?
 	return completed, total, nil
 }
 
+func parseMatchDate(s string) (time.Time, error) {
+	if t, err := time.Parse("2006-01-02T15:04", s); err == nil {
+		return t, nil
+	}
+	return time.Parse("2006-01-02", s)
+}
+
 func scanFixture(scanner interface {
 	Scan(dest ...any) error
 }) (Fixture, error) {
@@ -731,7 +821,7 @@ func scanFixture(scanner interface {
 	); err != nil {
 		return Fixture{}, err
 	}
-	parsed, err := time.Parse("2006-01-02", matchDate)
+	parsed, err := parseMatchDate(matchDate)
 	if err != nil {
 		return Fixture{}, err
 	}
@@ -749,8 +839,7 @@ WHERE id = ?
 }
 
 func predictionOpen(now time.Time, matchDate time.Time) bool {
-	location := now.Location()
-	deadline := time.Date(matchDate.Year(), matchDate.Month(), matchDate.Day(), 0, 0, 0, 0, location)
+	deadline := matchDate.Add(-1 * time.Hour)
 	return now.Before(deadline)
 }
 
@@ -832,7 +921,6 @@ SELECT
 	p.home_score, p.away_score
 FROM fixtures f
 LEFT JOIN fixture_predictions p ON p.fixture_id = f.id AND p.user_id = ?
-WHERE f.stage = 'groups'
 ORDER BY f.match_date, f.id
 `, userID)
 	if err != nil {
@@ -851,7 +939,7 @@ ORDER BY f.match_date, f.id
 		); err != nil {
 			return nil, err
 		}
-		parsed, err := time.Parse("2006-01-02", matchDate)
+		parsed, err := parseMatchDate(matchDate)
 		if err != nil {
 			return nil, err
 		}
@@ -910,14 +998,15 @@ func (s *Store) FullRanking() ([]UserRanking, error) {
 				hit.HasResult = true
 				hit.RealHome = rh
 				hit.RealAway = ra
+				exactPts, outcomePts := fixtureRoundPoints(f.Round)
 				if ph == rh && pa == ra {
-					hit.Points = 3
+					hit.Points = exactPts
 					hit.HitType = "exact"
-					ranking.TotalPoints += 3
+					ranking.TotalPoints += exactPts
 				} else if outcome(ph, pa) == outcome(rh, ra) {
-					hit.Points = 1
+					hit.Points = outcomePts
 					hit.HitType = "outcome"
-					ranking.TotalPoints += 1
+					ranking.TotalPoints += outcomePts
 				} else {
 					hit.HitType = "miss"
 				}
@@ -1000,6 +1089,34 @@ func outcome(home, away int64) int {
 	return 0
 }
 
+func fixtureRoundPoints(round int) (exact int, outcome int) {
+	switch round {
+	case 4:
+		return 4, 2
+	case 5:
+		return 5, 3
+	case 6:
+		return 6, 4
+	case 7:
+		return 7, 5
+	case 8:
+		return 8, 6
+	case 9:
+		return 9, 7
+	default:
+		return 3, 1
+	}
+}
+
+var knockoutRoundLabels = map[int]string{
+	4: "16 avos",
+	5: "Oitavas",
+	6: "Quartas",
+	7: "Semifinais",
+	8: "Disputa de 3o",
+	9: "Final",
+}
+
 func fixtureRounds(hits []UserFixtureHit) []UserFixtureRound {
 	byRound := make(map[int][]UserFixtureHit)
 	for _, hit := range hits {
@@ -1007,14 +1124,18 @@ func fixtureRounds(hits []UserFixtureHit) []UserFixtureRound {
 	}
 
 	var rounds []UserFixtureRound
-	for round := 1; round <= 3; round++ {
+	for round := 1; round <= 9; round++ {
 		roundHits := byRound[round]
 		if len(roundHits) == 0 {
 			continue
 		}
+		label := fmt.Sprintf("%da Rodada", round)
+		if l, ok := knockoutRoundLabels[round]; ok {
+			label = l
+		}
 		rounds = append(rounds, UserFixtureRound{
 			Round: round,
-			Label: fmt.Sprintf("%da Rodada", round),
+			Label: label,
 			Hits:  roundHits,
 		})
 	}

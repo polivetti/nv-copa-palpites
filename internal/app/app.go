@@ -58,6 +58,28 @@ type RankingPageData struct {
 	Rankings []db.UserRanking
 }
 
+type KnockoutPhase struct {
+	Key      string
+	Label    string
+	Round    int
+	Active   bool
+	HasGames bool
+	Waiting  string
+}
+
+type KnockoutPageData struct {
+	User         db.User
+	Fixtures     []FixtureView
+	Predicted    int
+	Total        int
+	Phases       []KnockoutPhase
+	CurrentPhase KnockoutPhase
+	PrevPhase    string
+	NextPhase    string
+	Error        string
+	Notice       string
+}
+
 type GroupPicksData struct {
 	User       db.User
 	Groups     []GroupView
@@ -119,6 +141,7 @@ type FixtureView struct {
 	ID            int64
 	GroupName     string
 	MatchDate     string
+	MatchTime     string
 	HomeTeam      string
 	HomeDisplay   string
 	HomeFlag      string
@@ -167,6 +190,9 @@ func New(store *db.Store) http.Handler {
 	mux.HandleFunc("/groups/results/reset", app.resetFixtureResults)
 	mux.HandleFunc("/groups/qualifiers", app.saveGroupQualifiers)
 	mux.HandleFunc("/ranking", app.rankingPage)
+	mux.HandleFunc("/knockout", app.knockoutPage)
+	mux.HandleFunc("/knockout/predictions", app.saveKnockoutPredictions)
+	mux.HandleFunc("/knockout/results", app.saveKnockoutResults)
 	mux.HandleFunc("/round-predictions", app.saveRoundPredictions)
 	return mux
 }
@@ -425,6 +451,139 @@ func (a *App) groupsPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+}
+
+var knockoutPhases = []KnockoutPhase{
+	{Key: "16avos", Label: "16 avos de final", Round: 4},
+	{Key: "oitavas", Label: "Oitavas de final", Round: 5, Waiting: "Aguardando resultados das 16 avos de final."},
+	{Key: "quartas", Label: "Quartas de final", Round: 6, Waiting: "Aguardando resultados das oitavas de final."},
+	{Key: "semis", Label: "Semifinais", Round: 7, Waiting: "Aguardando resultados das quartas de final."},
+	{Key: "terceiro", Label: "Disputa de 3o lugar", Round: 8, Waiting: "Aguardando resultados das semifinais."},
+	{Key: "final", Label: "Final", Round: 9, Waiting: "Aguardando resultados das semifinais."},
+}
+
+func (a *App) knockoutPage(w http.ResponseWriter, r *http.Request) {
+	user, ok := a.requireAuth(w, r)
+	if !ok {
+		return
+	}
+	phase := r.URL.Query().Get("phase")
+	data := a.knockoutDataForPhase(user, phase)
+	a.render(w, "knockout.html", data)
+}
+
+func (a *App) saveKnockoutPredictions(w http.ResponseWriter, r *http.Request) {
+	user, ok := a.requireAuth(w, r)
+	if !ok {
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	phase := r.FormValue("phase")
+	if phase == "" {
+		phase = "16avos"
+	}
+	predictions, err := parseRoundPredictions(r)
+	if err != nil {
+		data := a.knockoutDataForPhase(user, phase)
+		data.Error = err.Error()
+		a.render(w, "knockout.html", data)
+		return
+	}
+	if len(predictions) == 0 {
+		data := a.knockoutDataForPhase(user, phase)
+		data.Error = "preencha ao menos um palpite completo para salvar"
+		a.render(w, "knockout.html", data)
+		return
+	}
+	if err := a.store.SaveFixturePredictions(user.ID, predictions, time.Now()); err != nil {
+		data := a.knockoutDataForPhase(user, phase)
+		data.Error = err.Error()
+		a.render(w, "knockout.html", data)
+		return
+	}
+	data := a.knockoutDataForPhase(user, phase)
+	data.Notice = "Palpites salvos."
+	a.render(w, "knockout.html", data)
+}
+
+func (a *App) knockoutDataForPhase(user db.User, phaseKey string) KnockoutPageData {
+	idx := 0
+	for i, p := range knockoutPhases {
+		if p.Key == phaseKey {
+			idx = i
+			break
+		}
+	}
+	current := knockoutPhases[idx]
+
+	fixtures, _ := a.store.KnockoutFixturePredictions(user.ID, current.Round)
+	predicted, total, _ := a.store.KnockoutPredictionProgress(user.ID, current.Round)
+
+	current.Active = true
+	current.HasGames = len(fixtures) > 0
+
+	phases := make([]KnockoutPhase, len(knockoutPhases))
+	copy(phases, knockoutPhases)
+	phases[idx].Active = true
+
+	var prev, next string
+	if idx > 0 {
+		prev = knockoutPhases[idx-1].Key
+	}
+	if idx < len(knockoutPhases)-1 {
+		next = knockoutPhases[idx+1].Key
+	}
+
+	return KnockoutPageData{
+		User:         user,
+		Fixtures:     fixtureViews(fixtures),
+		Predicted:    predicted,
+		Total:        total,
+		Phases:       phases,
+		CurrentPhase: current,
+		PrevPhase:    prev,
+		NextPhase:    next,
+	}
+}
+
+func (a *App) saveKnockoutResults(w http.ResponseWriter, r *http.Request) {
+	user, ok := a.requireAuth(w, r)
+	if !ok {
+		return
+	}
+	if !user.IsAdmin {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	phase := r.FormValue("phase")
+	if phase == "" {
+		phase = "16avos"
+	}
+	results, err := parseFixtureResults(r)
+	if err != nil {
+		data := a.knockoutDataForPhase(user, phase)
+		data.Error = err.Error()
+		a.render(w, "knockout.html", data)
+		return
+	}
+	for fixtureID, score := range results {
+		if err := a.store.SetFixtureResult(fixtureID, score[0], score[1]); err != nil {
+			data := a.knockoutDataForPhase(user, phase)
+			data.Error = err.Error()
+			a.render(w, "knockout.html", data)
+			return
+		}
+	}
+	data := a.knockoutDataForPhase(user, phase)
+	data.Notice = "Resultados oficiais atualizados."
+	a.render(w, "knockout.html", data)
 }
 
 func (a *App) saveRoundPredictions(w http.ResponseWriter, r *http.Request) {
@@ -978,10 +1137,15 @@ func fixtureViews(fixtures []db.FixturePrediction) []FixtureView {
 	for _, fixture := range fixtures {
 		homeTeam, _ := copa.TeamByName(fixture.HomeTeam)
 		awayTeam, _ := copa.TeamByName(fixture.AwayTeam)
+		matchTime := ""
+		if fixture.Round >= 4 {
+			matchTime = fixture.MatchDate.Format("15:04")
+		}
 		view := FixtureView{
 			ID:          fixture.ID,
 			GroupName:   fixture.GroupName,
 			MatchDate:   fixture.MatchDate.Format("02/01"),
+			MatchTime:   matchTime,
 			HomeTeam:    fixture.HomeTeam,
 			HomeDisplay: copa.TeamDisplay(fixture.HomeTeam),
 			HomeFlag:    homeTeam.Flag,
@@ -1252,7 +1416,7 @@ func normalizeGroupName(value string) string {
 }
 
 func isPredictionOpen(now time.Time, matchDate time.Time) bool {
-	deadline := time.Date(matchDate.Year(), matchDate.Month(), matchDate.Day(), 0, 0, 0, 0, now.Location())
+	deadline := matchDate.Add(-1 * time.Hour)
 	return now.Before(deadline)
 }
 

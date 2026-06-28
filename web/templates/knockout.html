@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Segunda Fase - NV Copa</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Bolao da Copa</p>
+      <h1>NV Copa</h1>
+    </div>
+    <form class="session-form" method="post" action="/logout">
+      <span class="pill">{{ .User.Name }}</span>
+      <button type="submit" class="ghost-button">Sair</button>
+    </form>
+  </header>
+
+  <main class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-block">
+        <p class="eyebrow dark">Menu</p>
+        <nav class="side-nav">
+          <a href="/">Resumo</a>
+          <a href="/groups">Palpites</a>
+          <a href="/knockout" class="active">Segunda Fase</a>
+          <a href="/ranking">Ranking</a>
+        </nav>
+      </div>
+
+      <div class="sidebar-block">
+        <p class="eyebrow dark">Fases</p>
+        <nav class="group-nav">
+          {{ range .Phases }}
+            <a href="/knockout?phase={{ .Key }}" class="{{ if .Active }}active{{ end }}">{{ .Label }}</a>
+          {{ end }}
+        </nav>
+      </div>
+
+      {{ if .CurrentPhase.HasGames }}
+      <div class="sidebar-block sidebar-summary">
+        <p class="eyebrow dark">{{ .CurrentPhase.Label }}</p>
+        <strong>{{ .Predicted }}/{{ .Total }} palpites salvos</strong>
+      </div>
+      {{ end }}
+    </aside>
+
+    <div class="content-shell">
+      <nav class="mobile-group-switcher">
+        <a class="group-arrow {{ if not .PrevPhase }}disabled{{ end }}" id="phase-prev">&#8249;</a>
+        <span class="group-current">{{ .CurrentPhase.Label }}</span>
+        <a class="group-arrow {{ if not .NextPhase }}disabled{{ end }}" id="phase-next">&#8250;</a>
+      </nav>
+
+      {{ if .Error }}<div class="alert error">{{ .Error }}</div>{{ end }}
+      {{ if .Notice }}<div class="alert notice">{{ .Notice }}</div>{{ end }}
+
+      <section class="round-layout">
+        <section class="panel round-panel" style="max-width: 100%;">
+          <header class="round-panel-head">
+            <h2>{{ .CurrentPhase.Label }}</h2>
+            {{ if .CurrentPhase.HasGames }}<span>Seus palpites</span>{{ end }}
+          </header>
+
+          {{ if .CurrentPhase.HasGames }}
+          <form class="round-form" method="post" action="/knockout/predictions">
+            <input type="hidden" name="phase" value="{{ .CurrentPhase.Key }}">
+            <div class="round-match-list">
+              {{ range .Fixtures }}
+                <article class="round-match-card">
+                  <div class="match-date">{{ .MatchDate }}{{ if .MatchTime }} {{ .MatchTime }}{{ end }}</div>
+                  <div class="round-club-row">
+                    <span class="round-team-name">{{ .HomeDisplay }}</span>
+                    <span class="flag">{{ .HomeFlag }}</span>
+                    <div class="match-inputs">
+                      <input type="number" min="0" name="fixture_{{ .ID }}_home" value="{{ .PredHomeScore }}" {{ if .Locked }}disabled{{ end }}>
+                      <span>x</span>
+                      <input type="number" min="0" name="fixture_{{ .ID }}_away" value="{{ .PredAwayScore }}" {{ if .Locked }}disabled{{ end }}>
+                    </div>
+                    <span class="flag">{{ .AwayFlag }}</span>
+                    <span class="round-team-name">{{ .AwayDisplay }}</span>
+                  </div>
+                  {{ if .HasResult }}
+                    <small>Resultado oficial ja informado.</small>
+                  {{ else if .Locked }}
+                    <small>Prazo encerrado. O palpite fecha 1h antes do jogo.</small>
+                  {{ else }}
+                    <small>Palpite aberto ate 1h antes do jogo.</small>
+                  {{ end }}
+                </article>
+              {{ end }}
+            </div>
+            <div class="sticky-actions">
+              <span>{{ .Predicted }}/{{ .Total }} palpites salvos</span>
+              <button type="submit">Salvar palpites</button>
+            </div>
+          </form>
+          {{ else }}
+          <div class="round-form">
+            <div class="round-match-list">
+              <article class="round-match-card">
+                <small>{{ .CurrentPhase.Waiting }}</small>
+              </article>
+            </div>
+          </div>
+          {{ end }}
+        </section>
+      </section>
+
+      {{ if and .User.IsAdmin .CurrentPhase.HasGames }}
+      <section class="round-layout">
+        <section class="panel round-panel" style="max-width: 100%;">
+          <header class="round-panel-head">
+            <h2>Resultados oficiais</h2>
+            <span>Administrador</span>
+          </header>
+
+          <form class="round-form" method="post" action="/knockout/results">
+            <input type="hidden" name="phase" value="{{ .CurrentPhase.Key }}">
+            <div class="round-match-list">
+              {{ range .Fixtures }}
+                <article class="round-match-card">
+                  <div class="match-date">{{ .MatchDate }}{{ if .MatchTime }} {{ .MatchTime }}{{ end }}</div>
+                  <div class="round-club-row">
+                    <span class="round-team-name">{{ .HomeDisplay }}</span>
+                    <span class="flag">{{ .HomeFlag }}</span>
+                    <div class="match-inputs">
+                      <input type="number" min="0" name="result_{{ .ID }}_home" value="{{ if .HasResult }}{{ .RealHomeScore }}{{ end }}">
+                      <span>x</span>
+                      <input type="number" min="0" name="result_{{ .ID }}_away" value="{{ if .HasResult }}{{ .RealAwayScore }}{{ end }}">
+                    </div>
+                    <span class="flag">{{ .AwayFlag }}</span>
+                    <span class="round-team-name">{{ .AwayDisplay }}</span>
+                  </div>
+                  {{ if .HasResult }}
+                    <small>Resultado oficial registrado.</small>
+                  {{ else }}
+                    <small>Resultado oficial ainda nao informado.</small>
+                  {{ end }}
+                </article>
+              {{ end }}
+            </div>
+            <div class="sticky-actions">
+              <span>Ao salvar, a pontuacao do ranking e recalculada.</span>
+              <button type="submit">Salvar resultados oficiais</button>
+            </div>
+          </form>
+        </section>
+      </section>
+      {{ end }}
+    </div>
+  </main>
+  <script>
+  (function() {
+    var prev = document.getElementById("phase-prev");
+    var next = document.getElementById("phase-next");
+    var prevPhase = "{{ .PrevPhase }}";
+    var nextPhase = "{{ .NextPhase }}";
+    if (prevPhase) {
+      prev.onclick = function(e) { e.preventDefault(); window.location.href = "/knockout?phase=" + prevPhase; };
+    }
+    if (nextPhase) {
+      next.onclick = function(e) { e.preventDefault(); window.location.href = "/knockout?phase=" + nextPhase; };
+    }
+  })();
+  </script>
+</body>
+</html>
