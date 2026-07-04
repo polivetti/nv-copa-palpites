@@ -506,17 +506,9 @@ VALUES ('groups', ?, ?, ?, ?, ?)
 }
 
 func (s *Store) seedKnockoutFixtures() error {
-	var count int
-	if err := s.db.QueryRow("SELECT COUNT(*) FROM fixtures WHERE stage = 'knockout'").Scan(&count); err != nil {
-		return err
-	}
-	if count > 0 {
-		return nil
-	}
-
 	for _, fixture := range copa.KnockoutFixtures {
 		if _, err := s.db.Exec(`
-INSERT INTO fixtures (stage, round_number, group_name, match_date, home_team, away_team)
+INSERT OR IGNORE INTO fixtures (stage, round_number, group_name, match_date, home_team, away_team)
 VALUES ('knockout', ?, '16 avos', ?, ?, ?)
 `, fixture.Round, fixture.DateTime, fixture.HomeTeam, fixture.AwayTeam); err != nil {
 			return err
