@@ -41,6 +41,11 @@ var KnockoutFixtures = []KnockoutFixtureSeed{
 	{Round: 5, DateTime: "2026-07-06T21:00", HomeTeam: "Estados Unidos", AwayTeam: "Belgica"},
 	{Round: 5, DateTime: "2026-07-07T13:00", HomeTeam: "Argentina", AwayTeam: "Egito"},
 	{Round: 5, DateTime: "2026-07-07T17:00", HomeTeam: "Suica", AwayTeam: "Colombia"},
+
+	{Round: 6, DateTime: "2026-07-09T17:00", HomeTeam: "Franca", AwayTeam: "Marrocos"},
+	{Round: 6, DateTime: "2026-07-10T16:00", HomeTeam: "Espanha", AwayTeam: "Belgica"},
+	{Round: 6, DateTime: "2026-07-11T18:00", HomeTeam: "Noruega", AwayTeam: "Inglaterra"},
+	{Round: 6, DateTime: "2026-07-11T22:00", HomeTeam: "Argentina", AwayTeam: "Suica"},
 }
 
 var GroupStageFixtures = []FixtureSeed{
