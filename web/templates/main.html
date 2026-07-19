@@ -18,6 +18,41 @@
     {{ if .Error }}<div class="alert error">{{ .Error }}</div>{{ end }}
     {{ if .Notice }}<div class="alert notice">{{ .Notice }}</div>{{ end }}
 
+    {{ if .HasRealPodium }}
+    <section class="panel podium-results-section">
+      <header class="round-panel-head">
+        <h2>Podio da Copa</h2>
+        <span>Resultado oficial</span>
+      </header>
+      <ol class="podium-list real-podium">
+        <li><span>1</span><strong>{{ teamDisplay .RealPodium.Champion }}</strong></li>
+        <li><span>2</span><strong>{{ teamDisplay .RealPodium.RunnerUp }}</strong></li>
+        <li><span>3</span><strong>{{ teamDisplay .RealPodium.Third }}</strong></li>
+      </ol>
+
+      <div class="podium-scores-list">
+        {{ range .PodiumSummaries }}
+        <details class="ranking-card">
+          <summary class="ranking-summary">
+            <span class="ranking-name">{{ .UserName }}</span>
+            <span class="ranking-points">{{ .PodiumPoints }} pts</span>
+          </summary>
+          <div class="ranking-details">
+            <ul class="hit-list">
+              {{ range .PodiumHits }}
+              <li class="hit-item {{ if .Correct }}exact{{ else }}miss{{ end }}">
+                <span class="hit-match">{{ .Label }}: {{ teamDisplay .Team }}</span>
+                <span class="hit-pts">{{ if .Correct }}+{{ .Points }}{{ else }}0{{ end }}</span>
+              </li>
+              {{ end }}
+            </ul>
+          </div>
+        </details>
+        {{ end }}
+      </div>
+    </section>
+    {{ end }}
+
     <section id="summary" class="podium-summary">
       <div class="summary-header">
         <div>

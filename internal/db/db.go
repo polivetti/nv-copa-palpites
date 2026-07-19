@@ -65,6 +65,13 @@ type UserGroupHit struct {
 	HitType   string
 }
 
+type PodiumHit struct {
+	Label   string
+	Team    string
+	Correct bool
+	Points  int
+}
+
 type UserRanking struct {
 	Position      int
 	UserName      string
@@ -73,6 +80,8 @@ type UserRanking struct {
 	FixtureRounds []UserFixtureRound
 	GroupHits     []UserGroupHit
 	Podium        PodiumPrediction
+	PodiumPoints  int
+	PodiumHits    []PodiumHit
 }
 
 type PodiumPrediction struct {
@@ -331,6 +340,38 @@ ON CONFLICT(user_id) DO UPDATE SET
 	updated_at = CURRENT_TIMESTAMP
 `, userID, champion, runnerUp, third)
 	return err
+}
+
+func (s *Store) RealPodium() (champion, runnerUp, third string, ok bool) {
+	var finalHome, finalAway string
+	var fhScore, faScore sql.NullInt64
+	err := s.db.QueryRow(`
+SELECT home_team, away_team, home_score, away_score
+FROM fixtures WHERE stage = 'knockout' AND round_number = 9 LIMIT 1`).Scan(&finalHome, &finalAway, &fhScore, &faScore)
+	if err != nil || !fhScore.Valid || !faScore.Valid {
+		return "", "", "", false
+	}
+
+	var thirdHome, thirdAway string
+	var thScore, taScore sql.NullInt64
+	err = s.db.QueryRow(`
+SELECT home_team, away_team, home_score, away_score
+FROM fixtures WHERE stage = 'knockout' AND round_number = 8 LIMIT 1`).Scan(&thirdHome, &thirdAway, &thScore, &taScore)
+	if err != nil || !thScore.Valid || !taScore.Valid {
+		return "", "", "", false
+	}
+
+	if fhScore.Int64 > faScore.Int64 {
+		champion, runnerUp = finalHome, finalAway
+	} else {
+		champion, runnerUp = finalAway, finalHome
+	}
+	if thScore.Int64 > taScore.Int64 {
+		third = thirdHome
+	} else {
+		third = thirdAway
+	}
+	return champion, runnerUp, third, true
 }
 
 func (s *Store) GroupPredictions(userID int64) ([]GroupPrediction, error) {
@@ -1018,6 +1059,8 @@ func (s *Store) FullRanking() ([]UserRanking, error) {
 		actualByGroup[r.GroupName][r.Position] = r.TeamName
 	}
 
+	realChampion, realRunnerUp, realThird, hasPodiumResult := s.RealPodium()
+
 	var rankings []UserRanking
 	for _, u := range users {
 		ranking := UserRanking{UserName: u.Name}
@@ -1025,6 +1068,27 @@ func (s *Store) FullRanking() ([]UserRanking, error) {
 		podium, err := s.PodiumPrediction(u.ID)
 		if err == nil {
 			ranking.Podium = podium
+			if hasPodiumResult {
+				hits := []PodiumHit{
+					{Label: "Campeao", Team: podium.Champion, Correct: podium.Champion == realChampion, Points: 0},
+					{Label: "Vice", Team: podium.RunnerUp, Correct: podium.RunnerUp == realRunnerUp, Points: 0},
+					{Label: "Terceiro", Team: podium.Third, Correct: podium.Third == realThird, Points: 0},
+				}
+				if hits[0].Correct {
+					hits[0].Points = 20
+				}
+				if hits[1].Correct {
+					hits[1].Points = 15
+				}
+				if hits[2].Correct {
+					hits[2].Points = 10
+				}
+				for _, h := range hits {
+					ranking.PodiumPoints += h.Points
+				}
+				ranking.TotalPoints += ranking.PodiumPoints
+				ranking.PodiumHits = hits
+			}
 		}
 
 		fixtures, err := s.AllFixturePredictionsForUser(u.ID)

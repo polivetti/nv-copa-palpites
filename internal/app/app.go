@@ -24,6 +24,21 @@ type App struct {
 
 const activePredictionRound = 3
 
+type PodiumSummary struct {
+	UserName     string
+	Champion     string
+	RunnerUp     string
+	Third        string
+	PodiumPoints int
+	PodiumHits   []db.PodiumHit
+}
+
+type RealPodiumInfo struct {
+	Champion string
+	RunnerUp string
+	Third    string
+}
+
 type PageData struct {
 	User                 db.User
 	Podium               db.PodiumPrediction
@@ -39,6 +54,9 @@ type PageData struct {
 	RoundTotal           int
 	Error                string
 	Notice               string
+	HasRealPodium        bool
+	RealPodium           RealPodiumInfo
+	PodiumSummaries      []PodiumSummary
 }
 
 type AuthData struct {
@@ -694,6 +712,45 @@ func (a *App) loadData(user db.User, selectedGroup string) PageData {
 		RoundPredicted:       roundPredicted,
 		RoundTotal:           roundTotal,
 	}
+
+	realChampion, realRunnerUp, realThird, hasReal := a.store.RealPodium()
+	if hasReal {
+		data.HasRealPodium = true
+		data.RealPodium = RealPodiumInfo{Champion: realChampion, RunnerUp: realRunnerUp, Third: realThird}
+		allUsers, err := a.store.AllUsers()
+		if err == nil {
+			for _, u := range allUsers {
+				pp, err := a.store.PodiumPrediction(u.ID)
+				if err != nil {
+					continue
+				}
+				hits := []db.PodiumHit{
+					{Label: "Campeao", Team: pp.Champion, Correct: pp.Champion == realChampion},
+					{Label: "Vice", Team: pp.RunnerUp, Correct: pp.RunnerUp == realRunnerUp},
+					{Label: "Terceiro", Team: pp.Third, Correct: pp.Third == realThird},
+				}
+				if hits[0].Correct {
+					hits[0].Points = 20
+				}
+				if hits[1].Correct {
+					hits[1].Points = 15
+				}
+				if hits[2].Correct {
+					hits[2].Points = 10
+				}
+				total := hits[0].Points + hits[1].Points + hits[2].Points
+				data.PodiumSummaries = append(data.PodiumSummaries, PodiumSummary{
+					UserName:     u.Name,
+					Champion:     pp.Champion,
+					RunnerUp:     pp.RunnerUp,
+					Third:        pp.Third,
+					PodiumPoints: total,
+					PodiumHits:   hits,
+				})
+			}
+		}
+	}
+
 	return data
 }
 
