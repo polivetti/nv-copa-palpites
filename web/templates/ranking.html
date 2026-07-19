@@ -50,12 +50,23 @@
               <div class="ranking-details">
                 {{ if .Podium.Champion }}
                   <div class="ranking-detail-section">
-                    <h4>Palpite de podio</h4>
-                    <ol class="podium-picks">
-                      <li><span class="podium-label">Campeao:</span> <strong>{{ teamDisplay .Podium.Champion }}</strong></li>
-                      <li><span class="podium-label">Vice:</span> <strong>{{ teamDisplay .Podium.RunnerUp }}</strong></li>
-                      <li><span class="podium-label">Terceiro:</span> <strong>{{ teamDisplay .Podium.Third }}</strong></li>
-                    </ol>
+                    <h4>Palpite de podio{{ if .PodiumHits }} — {{ .PodiumPoints }} pts{{ end }}</h4>
+                    {{ if .PodiumHits }}
+                      <ul class="hit-list">
+                        {{ range .PodiumHits }}
+                        <li class="hit-item {{ if .Correct }}exact{{ else }}miss{{ end }}">
+                          <span class="hit-match">{{ .Label }}: {{ teamDisplay .Team }}</span>
+                          <span class="hit-pts">{{ if .Correct }}+{{ .Points }}{{ else }}0{{ end }}</span>
+                        </li>
+                        {{ end }}
+                      </ul>
+                    {{ else }}
+                      <ol class="podium-picks">
+                        <li><span class="podium-label">Campeao:</span> <strong>{{ teamDisplay .Podium.Champion }}</strong></li>
+                        <li><span class="podium-label">Vice:</span> <strong>{{ teamDisplay .Podium.RunnerUp }}</strong></li>
+                        <li><span class="podium-label">Terceiro:</span> <strong>{{ teamDisplay .Podium.Third }}</strong></li>
+                      </ol>
+                    {{ end }}
                   </div>
                 {{ end }}
                 {{ if .FixtureRounds }}

@@ -1351,3 +1351,18 @@ select {
   vertical-align: middle;
   margin-left: 4px;
 }
+
+.podium-results-section {
+  margin-bottom: 1.5rem;
+}
+.podium-results-section .round-panel-head {
+  margin-bottom: 1rem;
+}
+.real-podium {
+  margin-bottom: 1.5rem;
+}
+.podium-scores-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
